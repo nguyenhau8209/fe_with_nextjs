@@ -1,11 +1,12 @@
 import DictationExercise from "@/components/DictationExercise";
 import { exercises } from "@/data/exercises";
 
-export default async function ExercisePage({
-  params,
-}: {
-  params: { levelId: string };
-}) {
+export default async function ExercisePage(
+  props: {
+    params: Promise<{ levelId: string }>;
+  }
+) {
+  const params = await props.params;
   // Đảm bảo params.levelId đã được resolve
   const levelId = params.levelId;
 
