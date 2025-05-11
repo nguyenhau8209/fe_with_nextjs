@@ -11,23 +11,24 @@ const levels = [
 
 export default function Home() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold text-center mb-8">
-        Luyện Nghe Chép Tiếng Đức
-      </h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {levels.map((level) => (
-          <Link
-            key={level.id}
-            href={`/level/${level.id}`}
-            className="block p-6 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
-          >
-            <h2 className="text-2xl font-semibold mb-2">{level.name}</h2>
-            <p className="text-gray-600">{level.description}</p>
-          </Link>
-        ))}
+    <main className="min-h-screen bg-gray-100 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <h1 className="text-4xl font-bold text-center mb-8">
+          Daily Dictation Deutsch
+        </h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {levels.map((level) => (
+            <Link
+              key={level.id}
+              href={`/levels/${level.id}`}
+              className="block bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+            >
+              <h2 className="text-2xl font-bold mb-2">{level.name}</h2>
+              <p className="text-gray-600">{level.description}</p>
+            </Link>
+          ))}
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
