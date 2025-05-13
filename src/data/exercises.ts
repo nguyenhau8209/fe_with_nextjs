@@ -13,6 +13,21 @@ export interface Exercise {
   script: ScriptData[];
 }
 
+export interface VideoExercise {
+  id: string;
+  title: string;
+  level: string;
+  videoId: string; // ID của video YouTube
+  startTime?: number; // thời gian bắt đầu (giây)
+  endTime?: number; // thời gian kết thúc (giây)
+  subtitles: {
+    text: string;
+    translation?: string;
+    startTime: number;
+    endTime: number;
+  }[];
+}
+
 // Danh sách bài tập
 export const exercises: Exercise[] = [
   {
@@ -66,6 +81,32 @@ export const exercises: Exercise[] = [
         text: "Das kostet 10 Euro.",
         startTime: 3,
         endTime: 5,
+      },
+    ],
+  },
+];
+
+// Danh sách bài tập video
+export const videoExercises: VideoExercise[] = [
+  {
+    id: "video-a1-1",
+    title: "Bài tập video 1 - Chào hỏi",
+    level: "A1",
+    videoId: "wtMUy_3NGl4",
+    startTime: 0,
+    endTime: 60,
+    subtitles: [
+      {
+        text: "Guten Tag!",
+        translation: "Xin chào!",
+        startTime: 0,
+        endTime: 2,
+      },
+      {
+        text: "Wie geht es Ihnen?",
+        translation: "Bạn khỏe không?",
+        startTime: 2,
+        endTime: 4,
       },
     ],
   },

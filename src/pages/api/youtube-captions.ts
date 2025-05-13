@@ -1,0 +1,27 @@
+import type { NextApiRequest, NextApiResponse } from "next";
+import { getSubtitles } from "youtube-captions-scraper";
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const { videoId, lang = "de" } = req.query;
+  if (!videoId) return res.status(400).json({ error: "Missing videoId" });
+  try {
+    const captions = await getSubtitles({
+      videoID: videoId as string,
+      lang: lang as string,
+    });
+    console.log("captions: ", captions);
+    // captions: [{ start, dur, text }]
+    const result = captions.map((cap: any) => ({
+      text: cap.text,
+      startTime: parseFloat(cap.start),
+      endTime: parseFloat(cap.start) + parseFloat(cap.dur),
+    }));
+    console.log("result: ", result);
+    res.status(200).json(result);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to fetch captions", details: e });
+  }
+}

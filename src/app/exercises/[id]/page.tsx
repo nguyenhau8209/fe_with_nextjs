@@ -4,9 +4,15 @@ import { exercises } from "@/data/exercises";
 import DictationExercise from "@/components/DictationExercise";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { use } from "react";
 
-export default function ExercisePage({ params }: { params: { id: string } }) {
-  const exercise = exercises.find((ex) => ex.id === params.id);
+export default function ExercisePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+  const exercise = exercises.find((ex) => ex.id === id);
 
   if (!exercise) {
     notFound();

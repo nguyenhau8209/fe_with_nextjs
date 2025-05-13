@@ -45,7 +45,6 @@ export default function DictationExercise({
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<any>(null);
 
-  console.log("script: ", script);
   // Lấy câu hiện tại
   const currentSentence = script[currentIndex];
 
@@ -228,98 +227,96 @@ export default function DictationExercise({
   }, [settings, isAudioLoaded, currentIndex, script]);
 
   return (
-    <>
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-end mb-2">
-          <button
-            className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600"
-            onClick={() => setShowSettings(true)}
-          >
-            Cài đặt
-          </button>
-        </div>
-        {showSettings && <Settings onClose={() => setShowSettings(false)} />}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-2">{title}</h1>
-          <div className="text-sm text-gray-600">Cấp độ: {level}</div>
-        </div>
-
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={handlePrevious}
-              disabled={currentIndex === 0}
-              className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
-            >
-              ← Trước
-            </button>
-            <span className="text-sm font-medium">
-              Câu {currentIndex + 1} / {script.length}
-            </span>
-            <button
-              onClick={handleNext}
-              disabled={currentIndex === script.length - 1}
-              className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
-            >
-              Tiếp →
-            </button>
-          </div>
-          <button
-            onClick={() => setShowTranslation(!showTranslation)}
-            className="text-sm text-blue-600 hover:text-blue-800"
-          >
-            {showTranslation ? "Ẩn bản dịch" : "Hiện bản dịch"}
-          </button>
-        </div>
-
-        <div className="bg-gray-900 rounded-lg p-6 mb-6">
-          {audioError && (
-            <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
-              {audioError}
-            </div>
-          )}
-
-          <div className="mb-4">
-            <audio ref={audioRef} controls className="w-full">
-              <source src={audioUrl} type="audio/mpeg" />
-              Trình duyệt của bạn không hỗ trợ phát audio.
-            </audio>
-          </div>
-
-          <div className="relative">
-            <textarea
-              value={userInput}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Gõ những gì bạn nghe được..."
-              className="w-full h-32 p-4 bg-gray-800 text-white rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            />
-            <button
-              onClick={playCurrentSentence}
-              disabled={!isAudioLoaded || isPlaying}
-              className="absolute bottom-4 right-4 text-gray-400 hover:text-white disabled:opacity-50"
-              title="Phát lại câu hiện tại"
-            >
-              {isPlaying ? "⏸" : "▶"}
-            </button>
-          </div>
-        </div>
-
-        {showAnswer && currentSentence && (
-          <div className="mt-4 p-4 bg-red-900/50 rounded-lg">
-            <div className="text-white">
-              <p className="font-bold mb-2">Đáp án đúng:</p>
-              <p>{currentSentence.text}</p>
-            </div>
-          </div>
-        )}
-
-        {showTranslation && currentSentence && (
-          <div className="bg-gray-800 rounded-lg p-6">
-            <div className="text-white">{currentSentence.text}</div>
-          </div>
-        )}
+    <div className="max-w-4xl mx-auto">
+      <div className="flex justify-end mb-2">
+        <button
+          className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600"
+          onClick={() => setShowSettings(true)}
+        >
+          Cài đặt
+        </button>
       </div>
-    </>
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-2">{title}</h1>
+        <div className="text-sm text-gray-600">Cấp độ: {level}</div>
+      </div>
+
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={handlePrevious}
+            disabled={currentIndex === 0}
+            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+          >
+            ← Trước
+          </button>
+          <span className="text-sm font-medium">
+            Câu {currentIndex + 1} / {script.length}
+          </span>
+          <button
+            onClick={handleNext}
+            disabled={currentIndex === script.length - 1}
+            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+          >
+            Tiếp →
+          </button>
+        </div>
+        <button
+          onClick={() => setShowTranslation(!showTranslation)}
+          className="text-sm text-blue-600 hover:text-blue-800"
+        >
+          {showTranslation ? "Ẩn bản dịch" : "Hiện bản dịch"}
+        </button>
+      </div>
+
+      <div className="bg-gray-900 rounded-lg p-6 mb-6">
+        {audioError && (
+          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
+            {audioError}
+          </div>
+        )}
+
+        <div className="mb-4">
+          <audio ref={audioRef} controls className="w-full">
+            <source src={audioUrl} type="audio/mpeg" />
+            Trình duyệt của bạn không hỗ trợ phát audio.
+          </audio>
+        </div>
+
+        <div className="relative">
+          <textarea
+            value={userInput}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Gõ những gì bạn nghe được..."
+            className="w-full h-32 p-4 bg-gray-800 text-white rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          />
+          <button
+            onClick={playCurrentSentence}
+            disabled={!isAudioLoaded || isPlaying}
+            className="absolute bottom-4 right-4 text-gray-400 hover:text-white disabled:opacity-50"
+            title="Phát lại câu hiện tại"
+          >
+            {isPlaying ? "⏸" : "▶"}
+          </button>
+        </div>
+      </div>
+
+      {showAnswer && currentSentence && (
+        <div className="mt-4 p-4 bg-red-900/50 rounded-lg">
+          <div className="text-white">
+            <p className="font-bold mb-2">Đáp án đúng:</p>
+            <p>{currentSentence.text}</p>
+          </div>
+        </div>
+      )}
+
+      {showTranslation && currentSentence && (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <div className="text-white">{currentSentence.text}</div>
+        </div>
+      )}
+    </div>
   );
 }
