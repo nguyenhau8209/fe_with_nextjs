@@ -1,5 +1,7 @@
 "use client";
 
+export const runtime = "edge";
+
 import { exercises } from "@/data/exercises";
 import DictationExercise from "@/components/DictationExercise";
 import { notFound } from "next/navigation";
