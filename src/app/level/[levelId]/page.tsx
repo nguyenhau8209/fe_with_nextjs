@@ -1,7 +1,6 @@
 import DictationExercise from "@/components/DictationExercise";
 import { exercises } from "@/data/exercises";
 
-export const runtime = "edge";
 export default async function ExercisePage(props: {
   params: Promise<{ levelId: string }>;
 }) {

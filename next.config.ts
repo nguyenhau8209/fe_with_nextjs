@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
   webpack: (config: any) => {
     config.module.rules.push({
       test: /\.(mp3)$/,

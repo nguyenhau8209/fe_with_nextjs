@@ -8,8 +8,6 @@ import { use, useState } from "react";
 import { getLessons } from "@/utils/lessonStorage";
 import { Subtitle as VideoSubtitle } from "@/types/video";
 
-export const runtime = "edge";
-
 export default function VideoExercisePage({
   params,
 }: {

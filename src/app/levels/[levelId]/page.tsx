@@ -1,7 +1,5 @@
 "use client";
 
-export const runtime = "edge";
-
 import { exercises, videoExercises } from "@/data/exercises";
 import Link from "next/link";
 import { notFound } from "next/navigation";

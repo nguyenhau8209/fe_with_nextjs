@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getSubtitles } from "youtube-captions-scraper";
 
-export const runtime = "nodejs";
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
