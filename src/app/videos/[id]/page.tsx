@@ -5,8 +5,8 @@ import VideoExercise from "@/components/VideoExercise";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { use, useState } from "react";
-import YouTube from "react-youtube";
 import { getLessons } from "@/utils/lessonStorage";
+import { Subtitle } from "@/types/lesson";
 
 export default function VideoExercisePage({
   params,
@@ -18,7 +18,7 @@ export default function VideoExercisePage({
   if (!exercise) {
     // Tìm trong localStorage nếu không có trong hệ thống
     const custom = getLessons().find((ex) => ex.id === id);
-    console.log("custom ", custom);
+
     if (custom) {
       // Map lại cho phù hợp với props của VideoExercise
       exercise = {
@@ -33,8 +33,8 @@ export default function VideoExercisePage({
       };
     }
   }
-  console.log("exercise ", exercise);
-  const [subtitles, setSubtitles] = useState<any[] | null>(null);
+
+  const [subtitles, setSubtitles] = useState<Subtitle[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

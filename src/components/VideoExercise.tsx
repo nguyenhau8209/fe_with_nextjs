@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import YouTube from "react-youtube";
+import YouTube, { YouTubeProps } from "react-youtube";
 import Settings from "./Settings";
 import { VideoExerciseProps, Settings as SettingsType } from "../types/video";
 import { SETTINGS_KEY, YOUTUBE_PLAYER_STATES } from "../constants/video";
@@ -10,6 +10,24 @@ import {
   getNextSubtitle,
   getPreviousSubtitle,
 } from "../utils/video";
+
+declare global {
+  namespace YT {
+    interface Player {
+      getPlayerState(): number;
+      pauseVideo(): void;
+      playVideo(): void;
+      seekTo(seconds: number): void;
+      getCurrentTime(): number;
+    }
+    interface PlayerEvent {
+      target: Player;
+    }
+    interface OnStateChangeEvent {
+      data: number;
+    }
+  }
+}
 
 export default function VideoExercise({
   title,
@@ -26,7 +44,7 @@ export default function VideoExercise({
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<SettingsType | null>(null);
-  const playerRef = useRef<any>(null);
+  const playerRef = useRef<YT.Player | null>(null);
   const currentSubtitle = subtitles[currentIndex];
 
   // Reset input and hide answer when changing subtitle
@@ -161,11 +179,11 @@ export default function VideoExercise({
     }
   };
 
-  const handleReady = (event: any) => {
+  const handleReady = (event: YT.PlayerEvent) => {
     playerRef.current = event.target;
   };
 
-  const handleStateChange = (event: any) => {
+  const handleStateChange = (event: YT.OnStateChangeEvent) => {
     setIsPlaying(event.data === YOUTUBE_PLAYER_STATES.PLAYING);
   };
 

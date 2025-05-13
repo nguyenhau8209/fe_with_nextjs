@@ -1,4 +1,4 @@
-import { Lesson, CreateLessonInput } from "../types/lesson";
+import { Lesson, CreateLessonInput, Subtitle } from "../types/lesson";
 
 const STORAGE_KEY = "custom_lessons";
 
@@ -9,8 +9,8 @@ export const getLessons = (): Lesson[] => {
 };
 
 export const saveLesson = (
-  lesson: CreateLessonInput & { level: string },
-  subtitles: any[]
+  lesson: CreateLessonInput & { level: string; language: string },
+  subtitles: Subtitle[]
 ): Lesson => {
   const lessons = getLessons();
   const newLesson: Lesson = {
@@ -20,6 +20,7 @@ export const saveLesson = (
     createdAt: new Date(),
     updatedAt: new Date(),
     isSystemLesson: false,
+    language: lesson.language,
   };
 
   const updatedLessons = [...lessons, newLesson];

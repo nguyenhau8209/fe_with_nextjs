@@ -12,14 +12,14 @@ export default async function handler(
       videoID: videoId as string,
       lang: lang as string,
     });
-    console.log("captions: ", captions);
+
     // captions: [{ start, dur, text }]
-    const result = captions.map((cap: any) => ({
+    const result = captions.map((cap: Record<string, any>) => ({
       text: cap.text,
       startTime: parseFloat(cap.start),
       endTime: parseFloat(cap.start) + parseFloat(cap.dur),
     }));
-    console.log("result: ", result);
+
     res.status(200).json(result);
   } catch (e) {
     res.status(500).json({ error: "Failed to fetch captions", details: e });

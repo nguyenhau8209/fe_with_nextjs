@@ -16,15 +16,15 @@ export const checkSubtitles = async (
       (typeof window !== "undefined"
         ? (window as any).env?.NEXT_PUBLIC_YOUTUBE_API_KEY
         : undefined);
-    console.log("apiKey ", apiKey);
+
     const response = await fetch(
       `https://www.googleapis.com/youtube/v3/captions?videoId=${videoId}&part=snippet&key=${apiKey}`
     );
     const data = await response.json();
     const subtitles: Subtitle[] = [];
-    console.log("data ", data);
+
     if (data.items) {
-      data.items.forEach((item: any) => {
+      data.items.forEach((item: Record<string, any>) => {
         if (item.snippet.language === language) {
           subtitles.push({
             language: item.snippet.language,
@@ -36,7 +36,7 @@ export const checkSubtitles = async (
         }
       });
     }
-    console.log("subtitles ", subtitles);
+
     return subtitles;
   } catch (error) {
     console.error("Error checking subtitles:", error);
