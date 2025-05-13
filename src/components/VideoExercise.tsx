@@ -3,23 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import YouTube from "react-youtube";
 import Settings from "./Settings";
+import { VideoExerciseProps, Settings as SettingsType } from "../types/video";
+import { SETTINGS_KEY, YOUTUBE_PLAYER_STATES } from "../constants/video";
+import {
+  checkAnswer,
+  getNextSubtitle,
+  getPreviousSubtitle,
+} from "../utils/video";
 
-interface Subtitle {
-  text: string;
-  translation?: string;
-  startTime: number;
-  endTime: number;
-}
-
-interface VideoExerciseProps {
-  title: string;
-  level: string;
-  videoId: string;
-  startTime?: number;
-  endTime?: number;
-  subtitles: Subtitle[];
-}
-const SETTINGS_KEY = "dictation_settings";
 export default function VideoExercise({
   title,
   level,
@@ -33,40 +24,18 @@ export default function VideoExercise({
   const [showTranslation, setShowTranslation] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const playerRef = useRef<any>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<SettingsType | null>(null);
+  const playerRef = useRef<any>(null);
   const currentSubtitle = subtitles[currentIndex];
-  console.log("currentSubtitle ", currentSubtitle);
-  // Khi chuyển câu, reset input và ẩn đáp án
+
+  // Reset input and hide answer when changing subtitle
   useEffect(() => {
     setUserInput("");
     setShowAnswer(false);
   }, [currentIndex]);
 
-  // Phát lại câu hiện tại
-  const playCurrentSubtitle = () => {
-    if (!playerRef.current) return;
-    playerRef.current.seekTo(currentSubtitle.startTime);
-    playerRef.current.playVideo();
-    setIsPlaying(true);
-  };
-
-  // Tự động dừng khi hết câu
-  useEffect(() => {
-    if (!playerRef.current) return;
-    const interval = setInterval(() => {
-      const player = playerRef.current;
-      if (!player || !isPlaying) return;
-      const t = player.getCurrentTime();
-      if (t >= currentSubtitle.endTime) {
-        player.pauseVideo();
-        setIsPlaying(false);
-      }
-    }, 200);
-    return () => clearInterval(interval);
-  }, [isPlaying, currentSubtitle]);
-
+  // Load settings
   useEffect(() => {
     const saved = localStorage.getItem(SETTINGS_KEY);
     if (saved) {
@@ -74,6 +43,7 @@ export default function VideoExercise({
     }
   }, [showSettings]);
 
+  // Handle keyboard shortcuts
   useEffect(() => {
     if (!settings) return;
 
@@ -111,8 +81,7 @@ export default function VideoExercise({
         if (!videoPlayer) return;
 
         const playerState = videoPlayer.getPlayerState();
-        if (playerState === 1) {
-          // 1 = playing
+        if (playerState === YOUTUBE_PLAYER_STATES.PLAYING) {
           videoPlayer.pauseVideo();
         } else {
           videoPlayer.playVideo();
@@ -124,17 +93,38 @@ export default function VideoExercise({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [settings, currentIndex, subtitles]);
 
+  // Auto pause when subtitle ends
+  useEffect(() => {
+    if (!playerRef.current) return;
+    const interval = setInterval(() => {
+      const player = playerRef.current;
+      if (!player || !isPlaying) return;
+      const t = player.getCurrentTime();
+      if (t >= currentSubtitle.endTime) {
+        player.pauseVideo();
+        setIsPlaying(false);
+      }
+    }, 200);
+    return () => clearInterval(interval);
+  }, [isPlaying, currentSubtitle]);
+
+  const playCurrentSubtitle = () => {
+    if (!playerRef.current) return;
+    playerRef.current.seekTo(currentSubtitle.startTime);
+    playerRef.current.playVideo();
+    setIsPlaying(true);
+  };
+
   const handlePrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
       setUserInput("");
-      const prevSentence = subtitles[currentIndex - 1];
+      const prevSentence = getPreviousSubtitle(currentIndex, subtitles);
       if (prevSentence) {
         playerRef.current?.seekTo(prevSentence.startTime);
         playerRef.current?.playVideo();
         setIsPlaying(true);
       }
-      return;
     }
   };
 
@@ -142,24 +132,17 @@ export default function VideoExercise({
     if (currentIndex < subtitles.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setUserInput("");
-      const nextSentence = subtitles[currentIndex + 1];
+      const nextSentence = getNextSubtitle(currentIndex, subtitles);
       if (nextSentence) {
         playerRef.current?.seekTo(nextSentence.startTime);
         playerRef.current?.playVideo();
         setIsPlaying(true);
       }
-      return;
     }
   };
 
-  const checkAnswer = () => {
-    const normalizedInput = userInput.trim().toLowerCase();
-    const normalizedAnswer = currentSubtitle.text.trim().toLowerCase();
-    return normalizedInput === normalizedAnswer;
-  };
-
   const handleSubmit = () => {
-    if (checkAnswer()) {
+    if (checkAnswer(userInput, currentSubtitle.text)) {
       handleNext();
     } else {
       setShowAnswer(true);
@@ -183,7 +166,7 @@ export default function VideoExercise({
   };
 
   const handleStateChange = (event: any) => {
-    setIsPlaying(event.data === 1);
+    setIsPlaying(event.data === YOUTUBE_PLAYER_STATES.PLAYING);
   };
 
   const opts = {

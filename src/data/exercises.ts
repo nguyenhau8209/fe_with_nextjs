@@ -17,6 +17,7 @@ export interface VideoExercise {
   id: string;
   title: string;
   level: string;
+  language: string;
   videoId: string; // ID của video YouTube
   startTime?: number; // thời gian bắt đầu (giây)
   endTime?: number; // thời gian kết thúc (giây)
@@ -92,22 +93,10 @@ export const videoExercises: VideoExercise[] = [
     id: "video-a1-1",
     title: "Bài tập video 1 - Chào hỏi",
     level: "A1",
+    language: "en",
     videoId: "wtMUy_3NGl4",
     startTime: 0,
     endTime: 60,
-    subtitles: [
-      {
-        text: "Guten Tag!",
-        translation: "Xin chào!",
-        startTime: 0,
-        endTime: 2,
-      },
-      {
-        text: "Wie geht es Ihnen?",
-        translation: "Bạn khỏe không?",
-        startTime: 2,
-        endTime: 4,
-      },
-    ],
+    subtitles: [],
   },
 ];

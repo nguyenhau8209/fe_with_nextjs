@@ -4,6 +4,8 @@ import { exercises, videoExercises } from "@/data/exercises";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
+import { CreateLessonForm } from "@/components/CreateLessonForm";
+import { getLessons } from "@/utils/lessonStorage";
 
 const levelNames: { [key: string]: string } = {
   a1: "A1 - Cơ bản",
@@ -22,6 +24,13 @@ export default function LevelPage({
   const { levelId } = use(params);
   const levelIdLower = levelId.toLowerCase();
   const [showType, setShowType] = useState<"audio" | "video" | null>(null);
+  const [customLessons, setCustomLessons] = useState(() =>
+    getLessons().filter(
+      (lesson) =>
+        lesson.level?.toLowerCase() === levelIdLower && !lesson.isSystemLesson
+    )
+  );
+  const [showModal, setShowModal] = useState(false);
 
   if (!levelNames[levelIdLower]) {
     notFound();
@@ -33,6 +42,17 @@ export default function LevelPage({
   const levelVideoExercises = videoExercises.filter(
     (ex) => ex.level.toLowerCase() === levelIdLower
   );
+
+  const refreshCustomLessons = () => {
+    setCustomLessons(
+      getLessons().filter(
+        (lesson) =>
+          lesson.level?.toLowerCase() === levelIdLower && !lesson.isSystemLesson
+      )
+    );
+  };
+
+  const allVideoLessons = [...levelVideoExercises, ...customLessons];
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
@@ -92,14 +112,55 @@ export default function LevelPage({
 
         {showType === "video" && (
           <div>
-            <h2 className="text-2xl font-bold mb-4">
-              Danh sách bài tập video YouTube
-            </h2>
+            <button
+              className="mb-6 text-blue-600 hover:text-blue-800"
+              onClick={() => setShowType(null)}
+            >
+              ← Quay lại lựa chọn
+            </button>
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold mb-4">
+                Danh sách bài tập video YouTube
+              </h2>
+              <button
+                onClick={refreshCustomLessons}
+                className="ml-4 px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+              >
+                Làm mới danh sách
+              </button>
+            </div>
+            <div className="mb-6">
+              <button
+                onClick={() => setShowModal(true)}
+                className="px-4 py-2 bg-violet-600 text-white rounded hover:bg-violet-700 font-semibold"
+              >
+                Tạo bài học
+              </button>
+              {showModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                  <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg relative">
+                    <button
+                      className="absolute top-2 right-2 text-gray-500 hover:text-black"
+                      onClick={() => setShowModal(false)}
+                    >
+                      ×
+                    </button>
+                    <CreateLessonForm
+                      level={levelIdLower}
+                      onSuccess={() => {
+                        setShowModal(false);
+                        refreshCustomLessons();
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="grid gap-4">
-              {levelVideoExercises.length === 0 && (
+              {allVideoLessons.length === 0 && (
                 <p>Chưa có bài tập video cho trình độ này.</p>
               )}
-              {levelVideoExercises.map((exercise) => (
+              {allVideoLessons.map((exercise) => (
                 <Link
                   key={exercise.id}
                   href={`/videos/${exercise.id}`}
@@ -109,12 +170,6 @@ export default function LevelPage({
                 </Link>
               ))}
             </div>
-            <button
-              className="mt-6 text-blue-600 hover:text-blue-800"
-              onClick={() => setShowType(null)}
-            >
-              ← Quay lại lựa chọn
-            </button>
           </div>
         )}
       </div>
