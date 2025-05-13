@@ -34,7 +34,7 @@ export const exercises: Exercise[] = [
     id: "a1-1",
     title: "Bài tập 1 - Chào hỏi",
     level: "A1",
-    audioUrl: "/audio/a1-1.mp3",
+    audioUrl: "/audio/english-conversations-0001-1-at-home-1.mp3",
     script: [
       {
         text: "Guten Tag!",

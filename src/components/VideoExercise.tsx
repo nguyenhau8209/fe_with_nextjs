@@ -66,13 +66,18 @@ export default function VideoExercise({
     }, 200);
     return () => clearInterval(interval);
   }, [isPlaying, currentSubtitle]);
+
   useEffect(() => {
     const saved = localStorage.getItem(SETTINGS_KEY);
-    if (saved) setSettings(JSON.parse(saved));
+    if (saved) {
+      setSettings(JSON.parse(saved));
+    }
   }, [showSettings]);
+
   useEffect(() => {
     if (!settings) return;
-    const handleKeyUp = (e: KeyboardEvent) => {
+
+    const handleKeyDown = (e: KeyboardEvent) => {
       // Replay Key
       if (
         (settings.replayKey === "Ctrl" &&
@@ -90,8 +95,9 @@ export default function VideoExercise({
         (settings.replayKey === "Cmd" && (e.metaKey || e.key === "Meta"))
       ) {
         e.preventDefault();
-        playCurrentSubtitle();
-        console.log("click");
+        if (playerRef.current) {
+          playCurrentSubtitle();
+        }
       }
 
       // Play/Pause Key
@@ -103,15 +109,19 @@ export default function VideoExercise({
         e.preventDefault();
         const videoPlayer = playerRef.current;
         if (!videoPlayer) return;
-        if (videoPlayer.paused) {
-          videoPlayer.play();
+
+        const playerState = videoPlayer.getPlayerState();
+        if (playerState === 1) {
+          // 1 = playing
+          videoPlayer.pauseVideo();
         } else {
-          videoPlayer.pause();
+          videoPlayer.playVideo();
         }
       }
     };
-    window.addEventListener("keyup", handleKeyUp);
-    return () => window.removeEventListener("keyup", handleKeyUp);
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [settings, currentIndex, subtitles]);
 
   const handlePrevious = () => {
