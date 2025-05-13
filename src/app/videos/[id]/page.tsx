@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { use, useState } from "react";
 import YouTube from "react-youtube";
+import { getLessons } from "@/utils/lessonStorage";
 
 export default function VideoExercisePage({
   params,
@@ -13,7 +14,26 @@ export default function VideoExercisePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const exercise = videoExercises.find((ex) => ex.id === id);
+  let exercise = videoExercises.find((ex) => ex.id === id);
+  if (!exercise) {
+    // Tìm trong localStorage nếu không có trong hệ thống
+    const custom = getLessons().find((ex) => ex.id === id);
+    console.log("custom ", custom);
+    if (custom) {
+      // Map lại cho phù hợp với props của VideoExercise
+      exercise = {
+        id: custom.id,
+        title: custom.title,
+        level: custom.level,
+        language: custom.language,
+        videoId: extractVideoId(custom.youtubeUrl) || "",
+        startTime: 0,
+        endTime: 0,
+        subtitles: [],
+      };
+    }
+  }
+  console.log("exercise ", exercise);
   const [subtitles, setSubtitles] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +47,9 @@ export default function VideoExercisePage({
     setError(null);
     try {
       const res = await fetch(
-        `/api/youtube-captions?videoId=${exercise.videoId}&lang=en`
+        `/api/youtube-captions?videoId=${exercise.videoId}&lang=${
+          exercise.language || "en"
+        }`
       );
       if (!res.ok) throw new Error("Không thể tải phụ đề từ YouTube");
       const data = await res.json();
@@ -75,4 +97,10 @@ export default function VideoExercisePage({
       </div>
     </div>
   );
+}
+
+function extractVideoId(url: string): string | null {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return match && match[2].length === 11 ? match[2] : null;
 }
