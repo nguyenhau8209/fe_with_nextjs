@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { use, useState } from "react";
 import { getLessons } from "@/utils/lessonStorage";
-import { Subtitle } from "@/types/lesson";
+import { Subtitle as VideoSubtitle } from "@/types/video";
 
 export default function VideoExercisePage({
   params,
@@ -34,7 +34,7 @@ export default function VideoExercisePage({
     }
   }
 
-  const [subtitles, setSubtitles] = useState<Subtitle[] | null>(null);
+  const [subtitles, setSubtitles] = useState<VideoSubtitle[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +53,15 @@ export default function VideoExercisePage({
       );
       if (!res.ok) throw new Error("Không thể tải phụ đề từ YouTube");
       const data = await res.json();
-      setSubtitles(data);
+      console.log("data ", data);
+      // Chuyển đổi dữ liệu phụ đề thành định dạng phù hợp
+      const formattedSubtitles = data.map((sub: any) => ({
+        text: sub.text,
+        startTime: sub.startTime,
+        endTime: sub.endTime,
+      }));
+      console.log("formattedSubtitles ", formattedSubtitles);
+      setSubtitles(formattedSubtitles);
     } catch (e: any) {
       setError(e.message || "Lỗi không xác định");
     } finally {
