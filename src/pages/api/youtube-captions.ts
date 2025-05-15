@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { getSubtitles } from "youtube-captions-scraper";
+import { getSubtitles } from "youtube-caption-extractor";
 
 export default async function handler(
   req: NextApiRequest,

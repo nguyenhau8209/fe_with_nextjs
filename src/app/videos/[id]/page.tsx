@@ -54,14 +54,8 @@ export default function VideoExercisePage({
       if (!res.ok) throw new Error("Không thể tải phụ đề từ YouTube");
       const data = await res.json();
       console.log("data ", data);
-      // Chuyển đổi dữ liệu phụ đề thành định dạng phù hợp
-      const formattedSubtitles = data.map((sub: any) => ({
-        text: sub.text,
-        startTime: sub.startTime,
-        endTime: sub.endTime,
-      }));
-      console.log("formattedSubtitles ", formattedSubtitles);
-      setSubtitles(formattedSubtitles);
+      // Dữ liệu đã được format sẵn từ API nên không cần chuyển đổi nữa
+      setSubtitles(data);
     } catch (e: any) {
       setError(e.message || "Lỗi không xác định");
     } finally {
