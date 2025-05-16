@@ -200,12 +200,14 @@ export default function VideoExercise({
   };
 
   return (
-    <div className="max-w-7xl mx-auto bg-[#181A20] p-8 rounded-xl shadow-lg">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2 text-white">{title}</h1>
+    <div className="max-w-7xl mx-auto bg-[#181A20] p-4 sm:p-8 rounded-xl shadow-lg">
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold mb-2 text-white">
+          {title}
+        </h1>
         <div className="text-sm text-gray-400">Trình độ: {level}</div>
       </div>
-      <div className="flex flex-col md:flex-row gap-8 w-full">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-8 w-full">
         <div className={`flex-1 ${!showVideo && "hidden"}`}>
           <div className="relative">
             <YouTube
