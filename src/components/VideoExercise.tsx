@@ -200,16 +200,12 @@ export default function VideoExercise({
   };
 
   return (
-    <div className="max-w-7xl mx-auto bg-[#181A20] p-4 sm:p-6 md:p-8 rounded-xl shadow-lg">
-      <div className="mb-4 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2 text-white">
-          {title}
-        </h1>
-        <div className="text-xs sm:text-sm text-gray-400">
-          Trình độ: {level}
-        </div>
+    <div className="max-w-7xl mx-auto bg-[#181A20] p-8 rounded-xl shadow-lg">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-2 text-white">{title}</h1>
+        <div className="text-sm text-gray-400">Trình độ: {level}</div>
       </div>
-      <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 md:gap-8 w-full">
+      <div className="flex flex-col md:flex-row gap-8 w-full">
         <div className={`flex-1 ${!showVideo && "hidden"}`}>
           <div className="relative">
             <YouTube
@@ -252,13 +248,30 @@ export default function VideoExercise({
               >
                 →
               </button>
+              <button
+                onClick={playCurrentSubtitle}
+                disabled={isPlaying}
+                className="border border-white rounded-full p-1 bg-amber-50 w-8 h-8 flex items-center justify-center"
+                title="Phát lại câu hiện tại"
+              >
+                {isPlaying ? "⏸" : "▶"}
+              </button>
             </div>
-            <button
-              onClick={() => setShowSettings(true)}
-              className="px-2 sm:px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 text-xs sm:text-sm transition-colors duration-200"
-            >
-              Cài đặt
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowVideo(!showVideo)}
+                className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm sm:text-base transition-colors duration-200"
+              >
+                {showVideo ? "Ẩn video" : "Hiện video"}
+              </button>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 text-sm"
+                title="Cài đặt"
+              >
+                ⚙
+              </button>
+            </div>
           </div>
           {showSettings && <Settings onClose={() => setShowSettings(false)} />}
           <div className="mb-3 sm:mb-4">
