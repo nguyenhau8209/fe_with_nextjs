@@ -1,6 +1,19 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Redis } from "@upstash/redis";
 
+// Hàm làm sạch text phụ đề
+function cleanSubtitleText(text: string): string {
+  // Giải mã các entity HTML phổ biến
+  const htmlDecoded = text
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'");
+  // Loại bỏ các ký tự đặc biệt (giữ lại chữ cái, số, khoảng trắng, dấu hỏi, dấu chấm than, dấu phẩy)
+  return htmlDecoded.replace(/[.,\[\]{}()"'""''!?:;<>/\\]/g, "").trim();
+}
+
 // Khởi tạo Redis client
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL || "",
@@ -62,7 +75,7 @@ export default async function handler(
 
         // Chuyển đổi dữ liệu từ Rapid API sang định dạng phù hợp với ứng dụng
         const formattedSubtitles = fallbackData.map((item: any) => ({
-          text: item.text,
+          text: cleanSubtitleText(item.text),
           startTime: parseFloat(item.start),
           endTime: parseFloat(item.start) + parseFloat(item.dur),
         }));
@@ -80,7 +93,7 @@ export default async function handler(
 
     // Chuyển đổi dữ liệu từ Rapid API sang định dạng phù hợp với ứng dụng
     const formattedSubtitles = data.map((item: any) => ({
-      text: item.text,
+      text: cleanSubtitleText(item.text),
       startTime: parseFloat(item.start),
       endTime: parseFloat(item.start) + parseFloat(item.dur),
     }));
