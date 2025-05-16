@@ -308,6 +308,20 @@ export default function VideoExercise({
               </p>
             </div>
           )}
+          <div className="mb-3 sm:mb-4">
+            <button
+              onClick={handleSubmit}
+              className="px-3 sm:px-4 py-1 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 text-sm sm:text-base transition-colors duration-200"
+            >
+              Check
+            </button>
+            <button
+              onClick={handleNext}
+              className="px-3 sm:px-4 py-1 sm:py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 text-sm sm:text-base transition-colors duration-200"
+            >
+              Bỏ qua
+            </button>
+          </div>
         </div>
       </div>
     </div>
