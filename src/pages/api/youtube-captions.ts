@@ -10,8 +10,11 @@ function cleanSubtitleText(text: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&#39;/g, "'");
-  // Loại bỏ các ký tự đặc biệt (giữ lại chữ cái, số, khoảng trắng, dấu hỏi, dấu chấm than, dấu phẩy)
-  return htmlDecoded.replace(/[.,\[\]{}()"'""''!?:;<>/\\]/g, "").trim();
+  // Loại bỏ các ký tự đặc biệt (giữ lại chữ cái, số, khoảng trắng, dấu hỏi, dấu chấm than, dấu phẩy, và DẤU CHẤM)
+  let cleaned = htmlDecoded.replace(/[\[\]{}()"'""''!?:;<>/\\]/g, "");
+  // Loại bỏ nhiều dấu cách liên tiếp thành 1 dấu cách
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+  return cleaned;
 }
 
 // Khởi tạo Redis client

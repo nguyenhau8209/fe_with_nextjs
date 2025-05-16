@@ -19,12 +19,12 @@ export default function ExercisePage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="mb-8">
+    <div className="min-h-screen bg-gray-100 py-4 sm:py-6 md:py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-4 sm:mb-6 md:mb-8">
           <Link
             href={`/levels/${exercise.level.toLowerCase()}`}
-            className="text-blue-600 hover:text-blue-800 mb-4 inline-block"
+            className="text-blue-600 hover:text-blue-800 mb-2 sm:mb-4 inline-block text-sm sm:text-base"
           >
             ← Quay lại danh sách bài tập
           </Link>

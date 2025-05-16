@@ -230,91 +230,81 @@ export default function DictationExercise({
     <div className="max-w-4xl mx-auto">
       <div className="flex justify-end mb-2">
         <button
-          className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600"
+          className="px-2 sm:px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 text-sm sm:text-base transition-colors duration-200"
           onClick={() => setShowSettings(true)}
         >
           Cài đặt
         </button>
       </div>
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">{title}</h1>
-        <div className="text-sm text-gray-600">Cấp độ: {level}</div>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">{title}</h1>
+        <div className="text-xs sm:text-sm text-gray-600">Cấp độ: {level}</div>
       </div>
 
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="flex items-center space-x-2 sm:space-x-4">
           <button
             onClick={handlePrevious}
             disabled={currentIndex === 0}
-            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+            className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm sm:text-base transition-colors duration-200"
           >
-            ← Trước
+            ←
           </button>
-          <span className="text-sm font-medium">
-            Câu {currentIndex + 1} / {script.length}
-          </span>
-          <button
-            onClick={handleNext}
-            disabled={currentIndex === script.length - 1}
-            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
-          >
-            Tiếp →
-          </button>
-        </div>
-        <button
-          onClick={() => setShowTranslation(!showTranslation)}
-          className="text-sm text-blue-600 hover:text-blue-800"
-        >
-          {showTranslation ? "Ẩn bản dịch" : "Hiện bản dịch"}
-        </button>
-      </div>
-
-      <div className="bg-gray-900 rounded-lg p-6 mb-6">
-        {audioError && (
-          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
-            {audioError}
-          </div>
-        )}
-
-        <div className="mb-4">
-          <audio ref={audioRef} controls className="w-full">
-            <source src={audioUrl} type="audio/mpeg" />
-            Trình duyệt của bạn không hỗ trợ phát audio.
-          </audio>
-        </div>
-
-        <div className="relative">
-          <textarea
-            value={userInput}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder="Gõ những gì bạn nghe được..."
-            className="w-full h-32 p-4 bg-gray-800 text-white rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none"
-          />
           <button
             onClick={playCurrentSentence}
-            disabled={!isAudioLoaded || isPlaying}
-            className="absolute bottom-4 right-4 text-gray-400 hover:text-white disabled:opacity-50"
-            title="Phát lại câu hiện tại"
+            className="px-3 sm:px-4 py-1 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base transition-colors duration-200"
           >
             {isPlaying ? "⏸" : "▶"}
           </button>
+          <button
+            onClick={handleNext}
+            disabled={currentIndex === script.length - 1}
+            className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50 text-sm sm:text-base transition-colors duration-200"
+          >
+            →
+          </button>
+        </div>
+        <div className="text-sm sm:text-base text-gray-600">
+          Câu {currentIndex + 1}/{script.length}
         </div>
       </div>
 
-      {showAnswer && currentSentence && (
-        <div className="mt-4 p-4 bg-red-900/50 rounded-lg">
-          <div className="text-white">
-            <p className="font-bold mb-2">Đáp án đúng:</p>
-            <p>{currentSentence.text}</p>
+      <div className="mb-4 sm:mb-6">
+        <textarea
+          value={userInput}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          placeholder="Nhập câu bạn nghe được..."
+          className="w-full h-24 sm:h-32 p-3 sm:p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base resize-none"
+        />
+      </div>
+
+      <div className="mb-4 sm:mb-6">
+        <button
+          onClick={() => setShowTranslation(!showTranslation)}
+          className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm sm:text-base transition-colors duration-200"
+        >
+          {showTranslation ? "Ẩn bản dịch" : "Xem bản dịch"}
+        </button>
+        {showTranslation && currentSentence?.translation && (
+          <div className="mt-2 p-3 sm:p-4 bg-gray-100 rounded-lg text-sm sm:text-base">
+            {currentSentence.translation}
           </div>
+        )}
+      </div>
+
+      {showAnswer && currentSentence && (
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-yellow-100 rounded-lg">
+          <p className="text-sm sm:text-base font-medium mb-1">Đáp án:</p>
+          <p className="text-sm sm:text-base">{currentSentence.text}</p>
         </div>
       )}
 
-      {showTranslation && currentSentence && (
-        <div className="bg-gray-800 rounded-lg p-6">
-          <div className="text-white">{currentSentence.text}</div>
+      <audio ref={audioRef} src={audioUrl} className="hidden" />
+      {audioError && (
+        <div className="text-red-600 text-sm sm:text-base mb-4">
+          {audioError}
         </div>
       )}
     </div>
