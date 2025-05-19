@@ -9,6 +9,8 @@ import {
   checkAnswer,
   getNextSubtitle,
   getPreviousSubtitle,
+  checkWordByWord,
+  getHintString,
 } from "../utils/video";
 
 declare global {
@@ -36,7 +38,8 @@ export default function VideoExercise({
   startTime = 0,
   endTime,
   subtitles,
-}: VideoExerciseProps) {
+  language = "de",
+}: VideoExerciseProps & { language?: string }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userInput, setUserInput] = useState("");
   const [showTranslation, setShowTranslation] = useState(false);
@@ -48,6 +51,21 @@ export default function VideoExercise({
   const [showVideo, setShowVideo] = useState(false);
   const playerRef = useRef<YT.Player | null>(null);
   const currentSubtitle = subtitles[currentIndex];
+  const [hint, setHint] = useState<string>("");
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [note, setNote] = useState<string>("");
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [translation, setTranslation] = useState<string>("");
+  const [wordModal, setWordModal] = useState<{
+    word: string;
+    position: { x: number; y: number };
+    show: boolean;
+  } | null>(null);
+  const [wordInfo, setWordInfo] = useState<{
+    ipaUK?: string;
+    ipaUS?: string;
+    meaning?: string;
+  }>({});
 
   // Reset input and hide answer when changing subtitle
   useEffect(() => {
@@ -162,10 +180,40 @@ export default function VideoExercise({
   };
 
   const handleSubmit = () => {
-    if (checkAnswer(userInput, currentSubtitle.text)) {
+    if (isCorrect) {
       handleNext();
+      setIsCorrect(false);
+      setShowTranslation(false);
+      setUserInput("");
+      return;
+    }
+    if (checkAnswer(userInput, currentSubtitle.text)) {
+      setIsCorrect(true);
+      setShowAnswer(false);
+      setShowTranslation(true);
     } else {
+      // Tạo gợi ý
+      const { firstWrongIndex, result, answerWords } = checkWordByWord(
+        userInput,
+        currentSubtitle.text
+      );
+      setHint(getHintString(result, answerWords, firstWrongIndex));
       setShowAnswer(true);
+
+      // Đặt lại vị trí con trỏ về từ sai (nếu có)
+      if (firstWrongIndex !== -1) {
+        const userWords = userInput.trim().split(/\s+/);
+        let pos = 0;
+        for (let i = 0; i <= firstWrongIndex; i++) {
+          pos += userWords[i]?.length || 0;
+          if (i < firstWrongIndex) pos += 1; // cộng thêm khoảng trắng giữa các từ
+        }
+        setTimeout(() => {
+          const textarea = document.querySelector("textarea");
+          if (textarea)
+            (textarea as HTMLTextAreaElement).setSelectionRange(pos, pos);
+        }, 0);
+      }
     }
   };
 
@@ -197,6 +245,93 @@ export default function VideoExercise({
       end: endTime,
       autoplay: 0,
     },
+  };
+
+  const speakWord = (word: string, langCode?: string) => {
+    let lang = "en-US";
+    if (language === "de") lang = "de-DE";
+    if (langCode) lang = langCode;
+    const utter = new window.SpeechSynthesisUtterance(word);
+    utter.lang = lang;
+    window.speechSynthesis.speak(utter);
+  };
+
+  const translateSentence = async (text: string) => {
+    const res = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=vi&dt=t&q=${encodeURIComponent(
+        text
+      )}`
+    );
+    const data = await res.json();
+    setTranslation(data[0].map((d: any) => d[0]).join(""));
+  };
+
+  // Reset lại isCorrect khi chuyển câu
+  useEffect(() => {
+    setIsCorrect(false);
+    setNote("");
+    setShowNoteInput(false);
+    setTranslation("");
+  }, [currentIndex]);
+
+  useEffect(() => {
+    if (isCorrect) {
+      translateSentence(currentSubtitle.text);
+    }
+  }, [isCorrect, currentSubtitle]);
+
+  const handleWordClick = async (e: React.MouseEvent, word: string) => {
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    setWordModal({
+      word,
+      position: {
+        x: rect.left + window.scrollX,
+        y: rect.bottom + window.scrollY,
+      },
+      show: true,
+    });
+    try {
+      if (language === "en") {
+        const res = await fetch(
+          `https://api.dictionaryapi.dev/api/v2/entries/en/${word}`
+        );
+        const data = await res.json();
+        const ipaUK =
+          data[0]?.phonetics?.find(
+            (p: any) => p.audio && p.audio.includes("uk")
+          )?.text || data[0]?.phonetics?.[0]?.text;
+        const ipaUS =
+          data[0]?.phonetics?.find(
+            (p: any) => p.audio && p.audio.includes("us")
+          )?.text || data[0]?.phonetics?.[1]?.text;
+        const resTrans = await fetch(
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(
+            word
+          )}`
+        );
+        const dataTrans = await resTrans.json();
+        setWordInfo({
+          ipaUK,
+          ipaUS,
+          meaning: dataTrans[0][0][0],
+        });
+      } else if (language === "de") {
+        // Chỉ lấy nghĩa qua Google Translate
+        const resTrans = await fetch(
+          `https://translate.googleapis.com/translate_a/single?client=gtx&sl=de&tl=vi&dt=t&q=${encodeURIComponent(
+            word
+          )}`
+        );
+        const dataTrans = await resTrans.json();
+        setWordInfo({
+          ipaUK: "",
+          ipaUS: "",
+          meaning: dataTrans[0][0][0],
+        });
+      }
+    } catch {
+      setWordInfo({ ipaUK: "", ipaUS: "", meaning: "..." });
+    }
   };
 
   return (
@@ -285,43 +420,160 @@ export default function VideoExercise({
               className="w-full h-24 sm:h-32 p-3 sm:p-4 bg-gray-800 text-white rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm sm:text-base"
             />
           </div>
-          <div className="mb-3 sm:mb-4">
-            <button
-              onClick={() => setShowTranslation(!showTranslation)}
-              className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm sm:text-base transition-colors duration-200"
-            >
-              {showTranslation ? "Ẩn bản dịch" : "Xem bản dịch"}
-            </button>
-            {showTranslation && currentSubtitle?.translation && (
-              <div className="mt-2 p-3 sm:p-4 bg-gray-800 rounded-lg text-sm sm:text-base text-white">
-                {currentSubtitle.translation}
+          {isCorrect && (
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-green-500 text-2xl">✔</span>
+              <span className="text-green-500 font-bold text-lg">
+                You are correct!
+              </span>
+            </div>
+          )}
+          {isCorrect && translation && (
+            <div className=" mb-3 mt-2 p-3 sm:p-4 bg-gray-800 rounded-lg text-sm sm:text-base text-white">
+              {translation}
+            </div>
+          )}
+          {isCorrect && (
+            <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-yellow-900/50 rounded-lg">
+              <p className="text-sm sm:text-base font-medium mb-1 text-white">
+                Phát âm:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {currentSubtitle.text.split(/\s+/).map((word, idx) => (
+                  <button
+                    key={idx}
+                    onClick={(e) =>
+                      handleWordClick(e, word.replace(/[.,!?]/g, ""))
+                    }
+                    className="underline text-white hover:text-blue-400 transition"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {word}
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
-          {showAnswer && currentSubtitle && (
+              {/* Modal phát âm từ */}
+              {wordModal?.show && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: wordModal.position.x,
+                    top: wordModal.position.y + 8,
+                    zIndex: 1000,
+                    background: "#23272f",
+                    color: "white",
+                    borderRadius: 8,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                    padding: 16,
+                    minWidth: 220,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="font-bold mb-2">{wordModal.word}</div>
+                  <div className="flex gap-2 mb-2">
+                    {language === "en" ? (
+                      <>
+                        <button
+                          onClick={() => speakWord(wordModal.word, "en-GB")}
+                          className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600"
+                        >
+                          UK 🔊
+                        </button>
+                        <button
+                          onClick={() => speakWord(wordModal.word, "en-US")}
+                          className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600"
+                        >
+                          US 🔊
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => speakWord(wordModal.word, "de-DE")}
+                        className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600"
+                      >
+                        DE 🔊
+                      </button>
+                    )}
+                  </div>
+                  {language === "en" && (
+                    <div className="mb-2 text-sm">
+                      <div>IPA UK: {wordInfo.ipaUK || "..."}</div>
+                      <div>IPA US: {wordInfo.ipaUS || "..."}</div>
+                    </div>
+                  )}
+                  <div className="text-sm">
+                    <div>Translation: {wordInfo.meaning || "..."}</div>
+                  </div>
+                  <button
+                    className="absolute top-1 right-2 text-gray-400 hover:text-white"
+                    onClick={() => setWordModal(null)}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isCorrect && showAnswer && currentSubtitle && (
             <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-yellow-900/50 rounded-lg">
               <p className="text-sm sm:text-base font-medium mb-1 text-white">
                 Đáp án:
               </p>
-              <p className="text-sm sm:text-base text-white">
-                {currentSubtitle.text}
-              </p>
+              <p
+                className="text-sm sm:text-base text-white"
+                dangerouslySetInnerHTML={{
+                  __html: hint || currentSubtitle.text,
+                }}
+              />
             </div>
           )}
-          <div className="mb-3 sm:mb-4">
-            <button
-              onClick={handleSubmit}
-              className="px-3 sm:px-4 py-1 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 text-sm sm:text-base transition-colors duration-200"
-            >
-              Check
-            </button>
-            <button
-              onClick={handleNext}
-              className="px-3 sm:px-4 py-1 sm:py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 text-sm sm:text-base transition-colors duration-200"
-            >
-              Bỏ qua
-            </button>
+          <div className="mb-3 sm:mb-4 flex gap-2">
+            {!isCorrect ? (
+              <>
+                <button
+                  onClick={handleSubmit}
+                  className="px-3 sm:px-4 py-1 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 text-sm sm:text-base transition-colors duration-200"
+                >
+                  Check
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="px-3 sm:px-4 py-1 sm:py-2 bg-red-600 text-white rounded-lg hover:bg-red-500 text-sm sm:text-base transition-colors duration-200"
+                >
+                  Bỏ qua
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setShowNoteInput(!showNoteInput)}
+                  className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm sm:text-base transition-colors duration-200"
+                >
+                  + note
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  className="px-3 sm:px-4 py-1 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-500 text-sm sm:text-base transition-colors duration-200"
+                >
+                  Next
+                </button>
+              </>
+            )}
           </div>
+          {showNoteInput && (
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Ghi chú của bạn..."
+              className="w-full mt-2 p-2 rounded bg-gray-800 text-white"
+            />
+          )}
         </div>
       </div>
     </div>
