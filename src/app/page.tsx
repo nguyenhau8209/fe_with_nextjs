@@ -15,6 +15,17 @@ export default function Home() {
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center mb-4 sm:mb-6 md:mb-8">
           Daily Dictation Deutsch
         </h1>
+
+        {/* Nút học từ vựng */}
+        <div className="mb-8 text-center">
+          <Link
+            href="/vocabulary"
+            className="inline-block bg-blue-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-600 transition-colors duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-1"
+          >
+            Học Từ Vựng
+          </Link>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {levels.map((level) => (
             <Link
