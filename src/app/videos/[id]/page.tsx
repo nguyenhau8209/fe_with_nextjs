@@ -4,8 +4,15 @@ import { videoExercises } from "@/data/exercises";
 import VideoExercise from "@/components/VideoExercise";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { use, useState } from "react";
-import { getLessons } from "@/utils/lessonStorage";
+import { use, useState, useEffect } from "react";
+import {
+  getLessons,
+  getSubtitlesForVideo,
+  saveSubtitles,
+  clearSubtitlesForVideo,
+  clearAllSubtitles,
+  getDetailedSubtitlesForLesson,
+} from "@/utils/lessonStorage";
 import { Subtitle as VideoSubtitle } from "@/types/video";
 
 export default function VideoExercisePage({
@@ -37,6 +44,21 @@ export default function VideoExercisePage({
   const [subtitles, setSubtitles] = useState<VideoSubtitle[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [subtitleSource, setSubtitleSource] = useState<"cache" | "api" | null>(
+    null
+  );
+
+  // Kiểm tra phụ đề trong localStorage khi component mount
+  useEffect(() => {
+    if (exercise?.videoId) {
+      const cachedSubtitles = getSubtitlesForVideo(exercise.videoId);
+      console.log("cachedSubtitles", cachedSubtitles);
+      if (cachedSubtitles) {
+        setSubtitles(cachedSubtitles);
+        setSubtitleSource("cache");
+      }
+    }
+  }, [exercise?.videoId]);
 
   if (!exercise) {
     notFound();
@@ -45,21 +67,64 @@ export default function VideoExercisePage({
   const handleStart = async () => {
     setLoading(true);
     setError(null);
+
     try {
+      // Kiểm tra xem đã có phụ đề trong localStorage chưa
+      const cachedSubtitles = getDetailedSubtitlesForLesson(exercise?.id);
+      console.log("cachedSubtitles", cachedSubtitles);
+      if (cachedSubtitles) {
+        // Nếu có phụ đề trong cache, sử dụng luôn
+        setSubtitles(cachedSubtitles);
+        setSubtitleSource("cache");
+        setLoading(false);
+        return;
+      }
+
+      // Nếu chưa có, gọi API để lấy phụ đề
       const res = await fetch(
         `/api/youtube-captions?videoId=${exercise.videoId}&lang=${
           exercise.language || "en"
         }`
       );
+
       if (!res.ok) throw new Error("Không thể tải phụ đề từ YouTube");
-      const data = await res.json();
-      console.log("data ", data);
-      // Dữ liệu đã được format sẵn từ API nên không cần chuyển đổi nữa
-      setSubtitles(data);
+
+      const rawData = await res.json();
+      console.log("rawData Youtube", rawData);
+
+      // Chuyển đổi dữ liệu để phù hợp với phát âm thanh
+      const formattedData = rawData.map((item) => ({
+        ...item,
+        startTime: parseFloat(item.start),
+        endTime: parseFloat(item.end),
+        text: item.text,
+      }));
+      console.log("formattedData", formattedData);
+
+      // Lưu phụ đề đã được chuyển đổi vào localStorage để sử dụng lần sau
+      saveSubtitles(exercise.videoId, formattedData);
+
+      // Đặt phụ đề đã được chuyển đổi cho component sử dụng
+      setSubtitles(formattedData);
+      setSubtitleSource("api");
     } catch (e: any) {
       setError(e.message || "Lỗi không xác định");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleClearCache = () => {
+    clearSubtitlesForVideo(exercise.videoId);
+    setSubtitles(null);
+    setSubtitleSource(null);
+  };
+
+  const handleClearAllCache = () => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa tất cả cache phụ đề?")) {
+      clearAllSubtitles();
+      setSubtitles(null);
+      setSubtitleSource(null);
     }
   };
 
@@ -87,14 +152,45 @@ export default function VideoExercisePage({
           </div>
         )}
         {subtitles && (
-          <VideoExercise
-            title={exercise.title}
-            level={exercise.level}
-            videoId={exercise.videoId}
-            startTime={exercise.startTime}
-            endTime={exercise.endTime}
-            subtitles={subtitles}
-          />
+          <div>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-600">
+                  Phụ đề đã được tải từ{" "}
+                  {subtitleSource === "cache" ? "bộ nhớ cache" : "YouTube"}
+                </span>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleClearCache}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+                >
+                  Xóa cache
+                </button>
+                <button
+                  onClick={handleClearAllCache}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm"
+                >
+                  Xóa tất cả cache
+                </button>
+                <button
+                  onClick={handleStart}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+                  disabled={loading}
+                >
+                  {loading ? "Đang tải..." : "Tải lại phụ đề"}
+                </button>
+              </div>
+            </div>
+            <VideoExercise
+              title={exercise.title}
+              level={exercise.level}
+              videoId={exercise.videoId}
+              startTime={exercise.startTime}
+              endTime={exercise.endTime}
+              subtitles={subtitles}
+            />
+          </div>
         )}
       </div>
     </div>

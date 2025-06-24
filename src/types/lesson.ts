@@ -3,6 +3,12 @@ export interface Subtitle {
   url: string;
 }
 
+export interface DetailedSubtitle {
+  text: string;
+  startTime: number;
+  endTime: number;
+}
+
 export interface Lesson {
   id: string;
   title: string;
@@ -10,6 +16,7 @@ export interface Lesson {
   userId?: string;
   isSystemLesson: boolean;
   subtitles: Subtitle[];
+  detailedSubtitles?: DetailedSubtitle[];
   createdAt: Date;
   updatedAt: Date;
   level: string;

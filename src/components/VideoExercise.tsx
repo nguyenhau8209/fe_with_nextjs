@@ -66,7 +66,6 @@ export default function VideoExercise({
     ipaUS?: string;
     meaning?: string;
   }>({});
-
   // Reset input and hide answer when changing subtitle
   useEffect(() => {
     setUserInput("");
@@ -134,23 +133,62 @@ export default function VideoExercise({
   // Auto pause when subtitle ends
   useEffect(() => {
     if (!playerRef.current) return;
+
     const interval = setInterval(() => {
       const player = playerRef.current;
       if (!player || !isPlaying) return;
-      const t = player.getCurrentTime();
-      if (t >= currentSubtitle.endTime) {
-        player.pauseVideo();
-        setIsPlaying(false);
+
+      const currentTime = player.getCurrentTime();
+      const playerState = player.getPlayerState();
+
+      // Chỉ kiểm tra khi video đang phát
+      if (playerState === YOUTUBE_PLAYER_STATES.PLAYING && currentSubtitle) {
+        // Chỉ log khi gần đến thời điểm kết thúc
+        if (currentTime >= currentSubtitle.endTime - 0.5) {
+          console.log(
+            `Current time: ${currentTime.toFixed(
+              1
+            )}s, subtitle ends at: ${currentSubtitle.endTime.toFixed(1)}s`
+          );
+        }
+
+        if (currentTime >= currentSubtitle.endTime) {
+          console.log(
+            `Auto-pausing at ${currentTime.toFixed(
+              1
+            )}s, subtitle ends at ${currentSubtitle.endTime.toFixed(1)}s`
+          );
+          player.pauseVideo();
+          setIsPlaying(false);
+        }
       }
-    }, 200);
+    }, 100); // Kiểm tra thường xuyên hơn
+
     return () => clearInterval(interval);
   }, [isPlaying, currentSubtitle]);
 
   const playCurrentSubtitle = () => {
-    if (!playerRef.current) return;
+    if (!playerRef.current || !currentSubtitle) {
+      console.log("Cannot play: no player or subtitle");
+      return;
+    }
+
+    console.log(
+      `Playing subtitle ${currentIndex + 1}: ${currentSubtitle.startTime}s - ${
+        currentSubtitle.endTime
+      }s`
+    );
+
+    // Seek đến thời điểm bắt đầu của subtitle
     playerRef.current.seekTo(currentSubtitle.startTime);
-    playerRef.current.playVideo();
-    setIsPlaying(true);
+
+    // Đợi một chút để seek hoàn thành rồi mới play
+    setTimeout(() => {
+      if (playerRef.current) {
+        playerRef.current.playVideo();
+        setIsPlaying(true);
+      }
+    }, 100);
   };
 
   const handlePrevious = () => {
@@ -158,10 +196,17 @@ export default function VideoExercise({
       setCurrentIndex(currentIndex - 1);
       setUserInput("");
       const prevSentence = getPreviousSubtitle(currentIndex, subtitles);
-      if (prevSentence) {
-        playerRef.current?.seekTo(prevSentence.startTime);
-        playerRef.current?.playVideo();
-        setIsPlaying(true);
+      if (prevSentence && playerRef.current) {
+        console.log(
+          `Moving to previous subtitle: ${prevSentence.startTime}s - ${prevSentence.endTime}s`
+        );
+        playerRef.current.seekTo(prevSentence.startTime);
+        setTimeout(() => {
+          if (playerRef.current) {
+            playerRef.current.playVideo();
+            setIsPlaying(true);
+          }
+        }, 100);
       }
     }
   };
@@ -171,10 +216,17 @@ export default function VideoExercise({
       setCurrentIndex(currentIndex + 1);
       setUserInput("");
       const nextSentence = getNextSubtitle(currentIndex, subtitles);
-      if (nextSentence) {
-        playerRef.current?.seekTo(nextSentence.startTime);
-        playerRef.current?.playVideo();
-        setIsPlaying(true);
+      if (nextSentence && playerRef.current) {
+        console.log(
+          `Moving to next subtitle: ${nextSentence.startTime}s - ${nextSentence.endTime}s`
+        );
+        playerRef.current.seekTo(nextSentence.startTime);
+        setTimeout(() => {
+          if (playerRef.current) {
+            playerRef.current.playVideo();
+            setIsPlaying(true);
+          }
+        }, 100);
       }
     }
   };
@@ -334,6 +386,20 @@ export default function VideoExercise({
     }
   };
 
+  // Debug: kiểm tra currentSubtitle
+  useEffect(() => {
+    if (currentSubtitle) {
+      console.log(`Current subtitle ${currentIndex + 1}:`, {
+        text: currentSubtitle.text.substring(0, 50) + "...",
+        startTime: currentSubtitle.startTime,
+        endTime: currentSubtitle.endTime,
+        duration: currentSubtitle.endTime - currentSubtitle.startTime,
+      });
+    } else {
+      console.log(`No subtitle found at index ${currentIndex}`);
+    }
+  }, [currentIndex, currentSubtitle]);
+
   return (
     <div className="max-w-7xl mx-auto bg-[#181A20] p-4 sm:p-8 rounded-xl shadow-lg">
       <div className="mb-4 sm:mb-6">
@@ -392,6 +458,18 @@ export default function VideoExercise({
                 title="Phát lại câu hiện tại"
               >
                 {isPlaying ? "⏸" : "▶"}
+              </button>
+              <button
+                onClick={() => {
+                  console.log("Test button clicked");
+                  console.log("Current subtitle:", currentSubtitle);
+                  console.log("Player ref:", playerRef.current);
+                  console.log("Is playing:", isPlaying);
+                }}
+                className="border border-white rounded-full p-1 bg-blue-50 w-8 h-8 flex items-center justify-center text-xs"
+                title="Test debug"
+              >
+                🐛
               </button>
             </div>
             <div className="flex items-center gap-2">

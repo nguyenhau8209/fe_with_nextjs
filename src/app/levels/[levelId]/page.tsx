@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
 import { CreateLessonForm } from "@/components/CreateLessonForm";
-import { getLessons } from "@/utils/lessonStorage";
+import { getLessons, deleteLesson } from "@/utils/lessonStorage";
 
 const levelNames: { [key: string]: string } = {
   a1: "A1 - Cơ bản",
@@ -51,6 +51,14 @@ export default function LevelPage({
           lesson.level?.toLowerCase() === levelIdLower && !lesson.isSystemLesson
       )
     );
+  };
+
+  const handleDeleteLesson = (lessonId: string, event: React.MouseEvent) => {
+    event.preventDefault(); // Ngăn chặn navigation
+    if (window.confirm("Bạn có chắc chắn muốn xóa bài học này?")) {
+      deleteLesson(lessonId);
+      refreshCustomLessons();
+    }
   };
 
   const allVideoLessons = [...levelVideoExercises, ...customLessons];
@@ -166,15 +174,28 @@ export default function LevelPage({
                 </p>
               )}
               {allVideoLessons.map((exercise) => (
-                <Link
+                <div
                   key={exercise.id}
-                  href={`/videos/${exercise.id}`}
-                  className="block bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1"
+                  className="bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1"
                 >
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
-                    {exercise.title}
-                  </h3>
-                </Link>
+                  <div className="flex items-center justify-between">
+                    <Link href={`/videos/${exercise.id}`} className="flex-1">
+                      <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
+                        {exercise.title}
+                      </h3>
+                    </Link>
+                    {"isSystemLesson" in exercise &&
+                      !exercise.isSystemLesson && (
+                        <button
+                          onClick={(e) => handleDeleteLesson(exercise.id, e)}
+                          className="ml-4 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors duration-200"
+                          title="Xóa bài học"
+                        >
+                          Xóa
+                        </button>
+                      )}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

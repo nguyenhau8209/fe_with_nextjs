@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Redis } from "@upstash/redis";
+import { GermanSubtitleProcessor } from "@/utils/subtitleProcessor";
 
 // Hàm làm sạch text phụ đề
 function cleanSubtitleText(text: string): string {
@@ -59,7 +60,7 @@ export default async function handler(
       // Nếu không tìm thấy phụ đề với ngôn ngữ được chỉ định, thử lấy phụ đề tiếng Anh
       if (response.status === 404 && lang !== "en") {
         const fallbackResponse = await fetch(
-          `https://youtube-captions-transcript-subtitles-video-combiner.p.rapidapi.com/download-json/${videoId}?language=${lang}`,
+          `https://youtube-captions-transcript-subtitles-video-combiner.p.rapidapi.com/download-json/${videoId}?language=en`,
           {
             headers: {
               "X-RapidAPI-Key": process.env.RAPID_API_KEY || "",
@@ -77,35 +78,32 @@ export default async function handler(
         console.log("fallbackData ", fallbackData);
 
         // Chuyển đổi dữ liệu từ Rapid API sang định dạng phù hợp với ứng dụng
-        const formattedSubtitles = fallbackData.map((item: any) => ({
+        const rawSubtitles = fallbackData.map((item: any) => ({
           text: cleanSubtitleText(item.text),
-          startTime: parseFloat(item.start),
-          endTime: parseFloat(item.start) + parseFloat(item.dur),
+          start: parseFloat(item.start),
+          end: parseFloat(item.start) + parseFloat(item.dur),
         }));
 
-        console.log("formattedSubtitles ", formattedSubtitles);
-        // Cache kết quả
-        await redis.set(cacheKey, formattedSubtitles, { ex: CACHE_TTL });
-        return res.status(200).json(formattedSubtitles);
+        // Không xử lý tự động ở đây nữa
+        await redis.set(cacheKey, rawSubtitles, { ex: CACHE_TTL });
+        return res.status(200).json(rawSubtitles);
       }
       throw new Error("Failed to fetch transcript from Rapid API");
     }
-    console.log("response ", response);
+
     const data = await response.json();
-    console.log("data ", data);
+    console.log("data Yotube-captions", data);
 
     // Chuyển đổi dữ liệu từ Rapid API sang định dạng phù hợp với ứng dụng
-    const formattedSubtitles = data.map((item: any) => ({
+    const rawSubtitles = data.map((item: any) => ({
       text: cleanSubtitleText(item.text),
-      startTime: parseFloat(item.start),
-      endTime: parseFloat(item.start) + parseFloat(item.dur),
+      start: parseFloat(item.start),
+      end: parseFloat(item.start) + parseFloat(item.dur),
     }));
 
-    console.log("formattedSubtitles ", formattedSubtitles);
-    // Cache kết quả
-    await redis.set(cacheKey, formattedSubtitles, { ex: CACHE_TTL });
-
-    res.status(200).json(formattedSubtitles);
+    // Không xử lý tự động ở đây nữa
+    await redis.set(cacheKey, rawSubtitles, { ex: CACHE_TTL });
+    res.status(200).json(rawSubtitles);
   } catch (e) {
     console.error("Error fetching transcript:", e);
     res.status(500).json({
