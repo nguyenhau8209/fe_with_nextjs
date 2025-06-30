@@ -4,6 +4,7 @@ import { extractVideoId, checkSubtitles } from "../utils/youtube";
 import { saveLesson } from "../utils/lessonStorage";
 import { CreateLessonInput } from "../types/lesson";
 import SubtitleEditor, { EditableSubtitle } from "./SubtitleEditor";
+import VideoSubtitleEditor from "./VideoSubtitleEditor";
 
 async function fetchYoutubeTitle(videoId: string): Promise<string> {
   try {
@@ -19,9 +20,9 @@ async function fetchYoutubeTitle(videoId: string): Promise<string> {
     if (data.items && data.items.length > 0) {
       return data.items[0].snippet.title;
     }
-    throw new Error("Không tìm thấy tiêu đề video");
+    throw new Error("Video title not found");
   } catch (error) {
-    throw new Error("Không lấy được tiêu đề video");
+    throw new Error("Failed to fetch video title");
   }
 }
 
@@ -47,6 +48,9 @@ export const CreateLessonForm = ({
   const [rawSubtitles, setRawSubtitles] = useState<EditableSubtitle[] | null>(
     null
   );
+  const [subtitlesForTiming, setSubtitlesForTiming] = useState<
+    EditableSubtitle[] | null
+  >(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,13 +64,12 @@ export const CreateLessonForm = ({
         throw new Error("Invalid YouTube URL");
       }
 
-      // Lấy phụ đề gốc (raw captions)
       const rawRes = await fetch(
         `/api/youtube-captions?videoId=${videoId}&lang=${language}`
       );
-      if (!rawRes.ok) throw new Error("Không lấy được phụ đề gốc từ YouTube");
+      if (!rawRes.ok)
+        throw new Error("Failed to fetch raw subtitles from YouTube");
       const rawData = await rawRes.json();
-      // Chuyển đổi sang EditableSubtitle
       const rawSubs: EditableSubtitle[] = rawData.map((s: any) => ({
         text: s.text,
         startTime: s.start ?? s.startTime ?? 0,
@@ -110,56 +113,55 @@ export const CreateLessonForm = ({
     }
   };
 
-  const handleSaveSubtitles = async (editedSubtitles: EditableSubtitle[]) => {
-    if (!pendingLesson || !rawSubtitles) return;
+  const handleConfirmSubtitles = async (
+    editedSubtitles: EditableSubtitle[]
+  ) => {
     setLoading(true);
     setError("");
+
     try {
-      // Đảm bảo tất cả phụ đề đều được bao gồm
-      // Nếu có phụ đề nào bị thiếu, lấy từ rawSubtitles
-      const completeSubtitles = editedSubtitles.map((edited, index) => {
-        if (edited && edited.text && edited.text.trim() !== "") {
-          return edited;
-        } else {
-          // Nếu phụ đề này bị trống hoặc không tồn tại, lấy từ rawSubtitles
-          return (
-            rawSubtitles[index] || {
-              text: "",
-              startTime: 0,
-              endTime: 0,
-            }
-          );
-        }
-      });
-
-      // Lọc bỏ các phần tử null/undefined và đảm bảo có đủ phụ đề
-      const filteredSubtitles = completeSubtitles.filter(Boolean);
-
-      console.log("Complete subtitles to process:", filteredSubtitles);
-
-      // Gửi phụ đề đã chỉnh sửa lên API để xử lý tự động
-      const res = await fetch("/api/process-subtitles", {
+      const processRes = await fetch("/api/process-subtitles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subtitles: filteredSubtitles }),
+        body: JSON.stringify({ subtitles: editedSubtitles }),
       });
-      const data = await res.json();
-      console.log("data process-subtitles", data);
-      if (!res.ok) throw new Error(data.error || "Xử lý phụ đề thất bại");
+      const processedData = await processRes.json();
+      if (!processRes.ok || !processedData.subtitles) {
+        throw new Error(processedData.error || "Subtitle processing failed");
+      }
+      const processedSubtitles = processedData.subtitles;
 
-      // Lưu kết quả đã xử lý vào database/localStorage
-      saveLesson(pendingLesson.lessonInput, [], data.subtitles);
-      setSuccess("Tạo bài học thành công!");
+      setSubtitlesForTiming(processedSubtitles);
       setShowModal(false);
-      setUrl("");
-      setPendingLesson(null);
-      if (onSuccess) onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
+      console.error("Error processing subtitles:", err);
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleFinalSave = async (finalSubtitles: EditableSubtitle[]) => {
+    if (!pendingLesson) return;
+    setLoading(true);
+    setError("");
+    try {
+      const finalLessonInput = { ...pendingLesson.lessonInput };
+      saveLesson(finalLessonInput, [], finalSubtitles);
+
+      setSuccess("Lesson created successfully!");
+      setSubtitlesForTiming(null);
+      setUrl("");
+      setPendingLesson(null);
+      if (onSuccess) onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const videoId = extractVideoId(url);
 
   return (
     <>
@@ -186,7 +188,7 @@ export const CreateLessonForm = ({
             htmlFor="language"
             className="block text-sm font-medium text-gray-700"
           >
-            Ngôn ngữ phụ đề
+            Subtitle Language
           </label>
           <select
             id="language"
@@ -194,8 +196,8 @@ export const CreateLessonForm = ({
             onChange={(e) => setLanguage(e.target.value)}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           >
-            <option value="de">Tiếng Đức</option>
-            <option value="en">Tiếng Anh</option>
+            <option value="de">German</option>
+            <option value="en">English</option>
           </select>
         </div>
         {error && <div className="text-red-600 text-sm">{error}</div>}
@@ -205,7 +207,7 @@ export const CreateLessonForm = ({
           disabled={loading}
           className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
         >
-          {loading ? "Đang xử lý..." : "Tạo bài học"}
+          {loading ? "Processing..." : "Create Lesson"}
         </button>
       </form>
 
@@ -215,7 +217,7 @@ export const CreateLessonForm = ({
             <button
               className="absolute top-4 right-6 text-gray-500 hover:text-red-500 text-3xl z-10"
               onClick={() => setShowModal(false)}
-              title="Đóng"
+              title="Close"
             >
               ×
             </button>
@@ -223,16 +225,47 @@ export const CreateLessonForm = ({
               <SubtitleEditor
                 initialSubtitles={pendingLesson.subtitles}
                 rawSubtitles={rawSubtitles}
-                onSave={handleSaveSubtitles}
+                onSave={handleConfirmSubtitles}
               />
             </div>
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-60">
                 <span className="text-indigo-600 font-semibold">
-                  Đang xử lý phụ đề...
+                  Processing subtitles...
                 </span>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {subtitlesForTiming && videoId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 w-screen h-screen p-0 m-0">
+          <div className="bg-white w-full h-full max-w-full max-h-full rounded-none shadow-lg p-8 relative flex flex-col justify-center">
+            <button
+              className="absolute top-4 right-6 text-gray-500 hover:text-red-500 text-3xl z-10"
+              onClick={() => setSubtitlesForTiming(null)}
+              title="Close"
+            >
+              ×
+            </button>
+            <VideoSubtitleEditor
+              youtubeVideoId={videoId}
+              subtitles={subtitlesForTiming}
+              onSubtitlesChange={handleFinalSave}
+            />
+          </div>
+        </div>
+      )}
+
+      {loading && !showModal && !subtitlesForTiming && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 w-screen h-screen p-0 m-0">
+          <div className="bg-white rounded-lg shadow-lg px-8 py-6 text-center flex flex-col items-center">
+            <span className="text-indigo-600 text-lg font-semibold mb-2">
+              Processing...
+            </span>
+            <span className="text-gray-500 text-sm">Please wait.</span>
+            <div className="mt-4 animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-600"></div>
           </div>
         </div>
       )}
