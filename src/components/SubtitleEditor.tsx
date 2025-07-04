@@ -40,7 +40,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       };
       setSubtitles(updated);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIdx]);
 
   const isEdited = (idx: number) => {
@@ -89,7 +88,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       <div className="text-sm text-gray-600 mb-2">
         <b>Hướng dẫn:</b> Bấm vào một dòng phụ đề gốc bên trái để chỉnh sửa nội
         dung, dấu câu, thời gian... ở bên phải. Sau khi chỉnh sửa xong các dòng
-        mong muốn, nhấn "Lưu phụ đề".
+        mong muốn, nhấn &quot;Lưu phụ đề&quot;.
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>

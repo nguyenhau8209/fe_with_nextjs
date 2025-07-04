@@ -35,10 +35,9 @@ export async function POST(request: Request) {
 
     console.log("Validation passed, processing subtitles...");
     // Xử lý bằng pipeline mới, trả về cả bản gốc và bản đã xử lý
-    const { rawSubtitles, processedSubtitles } =
-      require("@/utils/subtitleProcessor").processSubtitlesWithMapping(
-        subtitles
-      );
+    const { rawSubtitles, processedSubtitles } = await import(
+      "@/utils/subtitleProcessor"
+    ).then((module) => module.processSubtitlesWithMapping(subtitles));
     console.log("Processed subtitles result:", processedSubtitles);
     console.log("Processed subtitles length:", processedSubtitles.length);
 

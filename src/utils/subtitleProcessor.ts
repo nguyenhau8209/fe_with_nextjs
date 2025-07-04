@@ -124,10 +124,10 @@ export class GermanSubtitleProcessor {
 
   public splitSentences(text: string): string[] {
     // Xử lý trường hợp đặc biệt trước khi tách câu
-    let processedText = this.handleSpecialCases(text);
+    const processedText = this.handleSpecialCases(text);
 
     // Tách câu với regex cải thiện
-    let sentences: string[] = processedText.match(/[^.!?]+[.!?]+/g) || [];
+    const sentences: string[] = processedText.match(/[^.!?]+[.!?]+/g) || [];
     // Đảm bảo đoạn cuối cùng không bị bỏ sót
     const lastMatch = processedText.match(/[^.!?]+$/);
     if (lastMatch && lastMatch[0].trim().length > 0) {
@@ -549,7 +549,7 @@ export function mapSentencesToRawSubtitles(
 ): SentenceMapping[] {
   const mappings: SentenceMapping[] = [];
   let rawIdx = 0;
-  let charOffset = 0;
+  const charOffset = 0;
 
   for (const sentence of sentences) {
     let found = false;
@@ -557,8 +557,8 @@ export function mapSentencesToRawSubtitles(
       endRawIdx = -1;
     let startCharOffset = -1,
       endCharOffset = -1;
-    let remaining = sentence.trim();
-    let searchOffset = 0;
+    const remaining = sentence.trim();
+    const searchOffset = 0;
 
     // Tìm vị trí bắt đầu của câu trong phụ đề gốc
     for (; rawIdx < rawSubtitles.length; rawIdx++) {
