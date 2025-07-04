@@ -232,7 +232,15 @@ export default function VideoExercise({
     }
   };
 
+  const [finalConfirmCount, setFinalConfirmCount] = useState(0);
+
+  // Sửa handleSubmit để xử lý xác nhận Enter lần 2 ở câu cuối
   const handleSubmit = () => {
+    // Nếu đang ở câu cuối cùng và đã đúng
+    if (currentIndex === subtitles.length - 1 && isCorrect) {
+      setFinalConfirmCount((c) => c + 1);
+      return;
+    }
     if (isCorrect) {
       handleNext();
       setIsCorrect(false);
@@ -404,15 +412,21 @@ export default function VideoExercise({
   const router = useRouter();
   const [showCompletionModal, setShowCompletionModal] = useState(false);
 
-  // Kiểm tra hoàn thành bài tập
+  // Cập nhật lại useEffect kiểm tra hoàn thành bài tập
   useEffect(() => {
     if (
       currentIndex === subtitles.length - 1 &&
-      isCorrect // Đúng câu cuối cùng
+      isCorrect &&
+      finalConfirmCount >= 2
     ) {
-      setTimeout(() => setShowCompletionModal(true), 600); // delay nhẹ cho UX
+      setTimeout(() => setShowCompletionModal(true), 300);
     }
-  }, [currentIndex, isCorrect, subtitles.length]);
+  }, [currentIndex, isCorrect, finalConfirmCount, subtitles.length]);
+
+  // Reset lại finalConfirmCount khi chuyển sang câu khác hoặc làm lại
+  useEffect(() => {
+    setFinalConfirmCount(0);
+  }, [currentIndex]);
 
   // Hàm reset lại toàn bộ trạng thái để làm lại
   const handleRetry = () => {
@@ -432,6 +446,7 @@ export default function VideoExercise({
     setWordModal(null);
     setWordInfo({});
     setShowCompletionModal(false);
+    setFinalConfirmCount(0);
     if (playerRef.current) {
       playerRef.current.seekTo(subtitles[0].startTime);
       playerRef.current.pauseVideo();
