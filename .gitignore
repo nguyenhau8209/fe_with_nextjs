@@ -44,3 +44,5 @@ next-env.d.ts
 #credentials
 /credentials
 .youtube-data-454211-43acd7a55d7e.json
+# Bỏ qua thư mục archive chứa code cũ
+src/archive/
