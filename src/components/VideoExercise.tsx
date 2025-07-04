@@ -12,6 +12,7 @@ import {
   checkWordByWord,
   getHintString,
 } from "../utils/video";
+import { useRouter } from "next/navigation";
 
 declare global {
   namespace YT {
@@ -400,8 +401,83 @@ export default function VideoExercise({
     }
   }, [currentIndex, currentSubtitle]);
 
+  const router = useRouter();
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+
+  // Kiểm tra hoàn thành bài tập
+  useEffect(() => {
+    if (
+      currentIndex === subtitles.length - 1 &&
+      isCorrect // Đúng câu cuối cùng
+    ) {
+      setTimeout(() => setShowCompletionModal(true), 600); // delay nhẹ cho UX
+    }
+  }, [currentIndex, isCorrect, subtitles.length]);
+
+  // Hàm reset lại toàn bộ trạng thái để làm lại
+  const handleRetry = () => {
+    setCurrentIndex(0);
+    setUserInput("");
+    setShowTranslation(false);
+    setShowAnswer(false);
+    setIsPlaying(false);
+    setShowSettings(false);
+    setVideoSize("normal");
+    setShowVideo(false);
+    setHint("");
+    setIsCorrect(false);
+    setNote("");
+    setShowNoteInput(false);
+    setTranslation("");
+    setWordModal(null);
+    setWordInfo({});
+    setShowCompletionModal(false);
+    if (playerRef.current) {
+      playerRef.current.seekTo(subtitles[0].startTime);
+      playerRef.current.pauseVideo();
+    }
+  };
+  // Hàm chuyển sang bài tiếp theo
+  const handleNextExercise = () => {
+    setShowCompletionModal(false);
+    // Giả sử có prop nextVideoId hoặc tự động tăng id (nếu là số)
+    // Hoặc chuyển về trang danh sách nếu không có bài tiếp theo
+    // Ở đây sẽ gọi callback hoặc router push
+    // Ví dụ: router.push(`/videos/${nextVideoId}`)
+    // Tạm thời: chuyển về trang danh sách level
+    router.push(`/levels/${level.toLowerCase()}`);
+  };
+
   return (
-    <div className="max-w-7xl mx-auto bg-[#181A20] p-4 sm:p-8 rounded-xl shadow-lg">
+    <div className="max-w-7xl mx-auto bg-[#181A20] p-4 sm:p-8 rounded-xl shadow-lg relative">
+      {/* Modal hoàn thành bài tập */}
+      {showCompletionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-6 animate-popIn min-w-[320px] max-w-[90vw]">
+            <div className="flex flex-col items-center gap-2">
+              <div className="text-green-500 text-6xl animate-bounce">🎉</div>
+              <h2 className="text-2xl font-bold text-gray-800">Hoàn thành!</h2>
+              <p className="text-gray-600 text-center">
+                Bạn đã hoàn thành tất cả các câu của bài tập này.
+              </p>
+            </div>
+            <div className="flex gap-4 mt-2">
+              <button
+                onClick={handleNextExercise}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold text-lg shadow hover:bg-blue-700 transition-all duration-200"
+              >
+                Bài tiếp theo
+              </button>
+              <button
+                onClick={handleRetry}
+                className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold text-lg shadow hover:bg-gray-300 transition-all duration-200"
+              >
+                Làm lại
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl font-bold mb-2 text-white">
           {title}
