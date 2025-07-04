@@ -153,35 +153,6 @@ export default function VideoExercisePage({
         )}
         {subtitles && (
           <div>
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">
-                  Phụ đề đã được tải từ{" "}
-                  {subtitleSource === "cache" ? "bộ nhớ cache" : "YouTube"}
-                </span>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={handleClearCache}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
-                >
-                  Xóa cache
-                </button>
-                <button
-                  onClick={handleClearAllCache}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm"
-                >
-                  Xóa tất cả cache
-                </button>
-                <button
-                  onClick={handleStart}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
-                  disabled={loading}
-                >
-                  {loading ? "Đang tải..." : "Tải lại phụ đề"}
-                </button>
-              </div>
-            </div>
             <VideoExercise
               title={exercise.title}
               level={exercise.level}

@@ -132,6 +132,18 @@ const VideoSubtitleEditor: React.FC<Props> = ({
     }
   };
 
+  const handleDelete = (idx: number) => {
+    if (subs.length <= 1) return; // Không cho phép xóa hết
+    const newSubs = subs.filter((_, i) => i !== idx);
+    setSubs(newSubs);
+    setSelectedIdx((prev) => {
+      if (prev === null) return null;
+      if (idx === prev) return Math.max(0, prev - 1);
+      if (idx < prev) return prev - 1;
+      return prev;
+    });
+  };
+
   const opts = {
     height: "390",
     width: "100%",
@@ -203,6 +215,18 @@ const VideoSubtitleEditor: React.FC<Props> = ({
                   className="w-20 border rounded px-2 py-1 text-xs"
                   onClick={(e) => e.stopPropagation()}
                 />
+                <button
+                  type="button"
+                  className="ml-2 text-red-500 hover:text-red-700 text-xs border border-red-200 rounded px-1 py-0.5"
+                  title="Xóa dòng này"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(idx);
+                  }}
+                  tabIndex={-1}
+                >
+                  Xóa
+                </button>
               </div>
 
               {/* Subtitle Text */}

@@ -34,12 +34,15 @@ export async function POST(request: Request) {
     }
 
     console.log("Validation passed, processing subtitles...");
-    const processor = new GermanSubtitleProcessor();
-    const processedSubtitles = processor.processSubtitles(subtitles);
+    // Xử lý bằng pipeline mới, trả về cả bản gốc và bản đã xử lý
+    const { rawSubtitles, processedSubtitles } =
+      require("@/utils/subtitleProcessor").processSubtitlesWithMapping(
+        subtitles
+      );
     console.log("Processed subtitles result:", processedSubtitles);
     console.log("Processed subtitles length:", processedSubtitles.length);
 
-    return NextResponse.json({ subtitles: processedSubtitles });
+    return NextResponse.json({ rawSubtitles, subtitles: processedSubtitles });
   } catch (error) {
     console.error("Error processing subtitles:", error);
     return NextResponse.json(

@@ -127,8 +127,16 @@ export class GermanSubtitleProcessor {
     let processedText = this.handleSpecialCases(text);
 
     // Tách câu với regex cải thiện
-    const sentences = processedText.match(/[^.!?]+[.!?]+/g) || [processedText];
-
+    let sentences: string[] = processedText.match(/[^.!?]+[.!?]+/g) || [];
+    // Đảm bảo đoạn cuối cùng không bị bỏ sót
+    const lastMatch = processedText.match(/[^.!?]+$/);
+    if (lastMatch && lastMatch[0].trim().length > 0) {
+      // Nếu đoạn cuối chưa có trong sentences, thêm vào
+      const last = this.restoreSpecialCases(lastMatch[0].trim());
+      if (!sentences.map((s) => s.trim()).includes(last)) {
+        sentences.push(lastMatch[0].trim());
+      }
+    }
     // Khôi phục các ký tự đặc biệt đã được thay thế
     return sentences
       .map((sentence) => this.restoreSpecialCases(sentence.trim()))
@@ -429,12 +437,12 @@ export class GermanSubtitleProcessor {
   private postProcessSubtitles(subtitles: GermanSubtitle[]): GermanSubtitle[] {
     console.log("Post-processing subtitles, input length:", subtitles.length);
 
-    // Loại bỏ subtitle trống hoặc quá ngắn
+    // Nới lỏng điều kiện lọc: chỉ loại bỏ nếu thực sự là rác (dưới 2 ký tự, hoặc thời gian âm)
     const filtered = subtitles.filter(
       (sub) =>
-        sub.text.trim().length > 2 &&
+        sub.text.trim().length > 1 &&
         sub.endTime > sub.startTime &&
-        sub.endTime - sub.startTime >= 0.5
+        sub.endTime - sub.startTime >= 0.2 // cho phép câu ngắn hơn
     );
 
     console.log("After filtering, length:", filtered.length);
@@ -555,9 +563,11 @@ export function mapSentencesToRawSubtitles(
     // Tìm vị trí bắt đầu của câu trong phụ đề gốc
     for (; rawIdx < rawSubtitles.length; rawIdx++) {
       const rawText = (rawSubtitles[rawIdx].text || "").trim();
-      const idx = rawText.indexOf(
-        remaining.slice(0, Math.min(10, remaining.length))
-      );
+      const idx = rawText
+        .toLowerCase()
+        .indexOf(
+          remaining.slice(0, Math.min(10, remaining.length)).toLowerCase()
+        );
       if (idx !== -1) {
         startRawIdx = rawIdx;
         startCharOffset = idx;
@@ -566,17 +576,25 @@ export function mapSentencesToRawSubtitles(
       }
     }
     if (!found) {
-      // Không tìm thấy, gán tạm vào phụ đề gốc hiện tại
-      startRawIdx = rawIdx;
+      // Không tìm thấy, log cảnh báo và gán tạm vào phụ đề gốc hiện tại
+      console.warn(
+        `[subtitleProcessor] Không mapping được câu: '${sentence.slice(
+          0,
+          30
+        )}...' với phụ đề gốc. Gán tạm vào rawIdx=${rawIdx}`
+      );
+      startRawIdx = Math.min(rawIdx, rawSubtitles.length - 1);
       startCharOffset = 0;
     }
     // Tìm vị trí kết thúc của câu trong phụ đề gốc
     let endFound = false;
     for (let j = startRawIdx; j < rawSubtitles.length; j++) {
       const rawText = (rawSubtitles[j].text || "").trim();
-      const idx = rawText.indexOf(
-        remaining.slice(-Math.min(10, remaining.length))
-      );
+      const idx = rawText
+        .toLowerCase()
+        .indexOf(
+          remaining.slice(-Math.min(10, remaining.length)).toLowerCase()
+        );
       if (idx !== -1) {
         endRawIdx = j;
         endCharOffset = idx + Math.min(10, remaining.length);
@@ -587,6 +605,11 @@ export function mapSentencesToRawSubtitles(
     if (!endFound) {
       endRawIdx = startRawIdx;
       endCharOffset = startCharOffset + sentence.length;
+      console.warn(
+        `[subtitleProcessor] Không mapping được đoạn cuối của câu: '${sentence.slice(
+          -30
+        )}...' với phụ đề gốc.`
+      );
     }
     mappings.push({
       sentence,
@@ -654,10 +677,12 @@ export function interpolateTimingForSentence(
  * Pipeline hoàn chỉnh: Tách câu, mapping với phụ đề gốc, nội suy timing, trả về mảng subtitle hoàn chỉnh.
  * Có thể test độc lập với rawSubtitles đầu vào.
  */
-export function processSubtitlesWithMapping(
-  rawSubtitles: any[]
-): GermanSubtitle[] {
-  if (!rawSubtitles || rawSubtitles.length === 0) return [];
+export function processSubtitlesWithMapping(rawSubtitles: any[]): {
+  rawSubtitles: any[];
+  processedSubtitles: GermanSubtitle[];
+} {
+  if (!rawSubtitles || rawSubtitles.length === 0)
+    return { rawSubtitles: [], processedSubtitles: [] };
 
   // Ghép toàn bộ text phụ đề gốc lại để tách câu
   const fullText = rawSubtitles.map((s) => s.text).join(" ");
@@ -670,7 +695,7 @@ export function processSubtitlesWithMapping(
   const mappings = mapSentencesToRawSubtitles(sentences, rawSubtitles);
 
   // Nội suy timing cho từng câu
-  const subtitles: GermanSubtitle[] = mappings.map((mapping) => {
+  const processedSubtitles: GermanSubtitle[] = mappings.map((mapping) => {
     const { startTime, endTime } = interpolateTimingForSentence(
       mapping,
       rawSubtitles
@@ -683,5 +708,5 @@ export function processSubtitlesWithMapping(
     };
   });
 
-  return subtitles;
+  return { rawSubtitles, processedSubtitles };
 }

@@ -70,6 +70,19 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     onSave(subtitles);
   };
 
+  const handleDelete = (idx: number) => {
+    if (subtitles.length <= 1) return; // Không cho phép xóa hết
+    const newSubtitles = subtitles.filter((_, i) => i !== idx);
+    const newRawSubtitles = rawSubtitles.filter((_, i) => i !== idx);
+    setSubtitles(newSubtitles);
+    setSelectedIdx((prev) => {
+      if (idx === prev) return Math.max(0, prev - 1);
+      if (idx < prev) return prev - 1;
+      return prev;
+    });
+    // Nếu đang chọn dòng bị xóa, chuyển sang dòng gần nhất
+  };
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold mb-2">Chỉnh sửa phụ đề</h2>
@@ -107,6 +120,18 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                 {isEdited(idx) && (
                   <span className="ml-1 text-green-600">✔</span>
                 )}
+                <button
+                  type="button"
+                  className="ml-2 text-red-500 hover:text-red-700 text-xs border border-red-200 rounded px-1 py-0.5"
+                  title="Xóa dòng này"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(idx);
+                  }}
+                  tabIndex={-1}
+                >
+                  Xóa
+                </button>
               </div>
             ))}
           </div>
