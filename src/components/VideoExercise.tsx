@@ -11,6 +11,7 @@ import {
   getPreviousSubtitle,
   checkWordByWord,
   getHintString,
+  addPunctuationToInput,
 } from "../utils/video";
 import { useRouter } from "next/navigation";
 
@@ -72,6 +73,28 @@ export default function VideoExercise({
     setUserInput("");
     setShowAnswer(false);
   }, [currentIndex]);
+
+  // Đóng modal khi click bên ngoài
+  useEffect(() => {
+    const handleMouseDownOutside = (e: MouseEvent) => {
+      if (wordModal?.show) {
+        const target = e.target as HTMLElement;
+        // Kiểm tra xem click có phải vào modal không
+        const isClickOnModal = target.closest('[data-word-modal]');
+        
+        // Chỉ đóng modal nếu click không phải vào modal
+        if (!isClickOnModal) {
+          setWordModal(null);
+        }
+      }
+    };
+
+    if (wordModal?.show) {
+      // Sử dụng mousedown thay vì click để tránh xung đột
+      document.addEventListener('mousedown', handleMouseDownOutside);
+      return () => document.removeEventListener('mousedown', handleMouseDownOutside);
+    }
+  }, [wordModal?.show]);
 
   // Load settings
   useEffect(() => {
@@ -249,6 +272,9 @@ export default function VideoExercise({
       return;
     }
     if (checkAnswer(userInput, currentSubtitle.text)) {
+      // Tự động điền dấu câu vào userInput khi đáp án đúng
+      const correctedInput = addPunctuationToInput(userInput, currentSubtitle.text);
+      setUserInput(correctedInput);
       setIsCorrect(true);
       setShowAnswer(false);
       setShowTranslation(true);
@@ -342,13 +368,36 @@ export default function VideoExercise({
   }, [isCorrect, currentSubtitle]);
 
   const handleWordClick = async (e: React.MouseEvent, word: string) => {
+    e.stopPropagation(); // Ngăn event bubbling
+    
     const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const modalWidth = 220; // minWidth của modal
+    const modalHeight = 200; // ước tính chiều cao modal
+    
+    // Tính toán vị trí X, đảm bảo modal không bị cắt bên phải
+    let x = rect.left;
+    if (x + modalWidth > window.innerWidth) {
+      x = window.innerWidth - modalWidth - 10; // 10px margin
+    }
+    // Đảm bảo không bị cắt bên trái
+    if (x < 10) {
+      x = 10;
+    }
+    
+    // Tính toán vị trí Y, đảm bảo modal không bị cắt bên dưới
+    let y = rect.bottom + 8;
+    if (y + modalHeight > window.innerHeight) {
+      // Nếu không đủ chỗ bên dưới, hiển thị bên trên
+      y = rect.top - modalHeight - 8;
+    }
+    // Đảm bảo không bị cắt bên trên
+    if (y < 10) {
+      y = 10;
+    }
+    
     setWordModal({
       word,
-      position: {
-        x: rect.left + window.scrollX,
-        y: rect.bottom + window.scrollY,
-      },
+      position: { x, y },
       show: true,
     });
     try {
@@ -629,17 +678,20 @@ export default function VideoExercise({
               {/* Modal phát âm từ */}
               {wordModal?.show && (
                 <div
+                  data-word-modal="true"
                   style={{
-                    position: "absolute",
+                    position: "fixed",
                     left: wordModal.position.x,
-                    top: wordModal.position.y + 8,
+                    top: wordModal.position.y,
                     zIndex: 1000,
                     background: "#23272f",
                     color: "white",
                     borderRadius: 8,
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
                     padding: 16,
                     minWidth: 220,
+                    maxWidth: 300,
+                    border: "1px solid #374151",
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -648,13 +700,19 @@ export default function VideoExercise({
                     {language === "en" ? (
                       <>
                         <button
-                          onClick={() => speakWord(wordModal.word, "en-GB")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            speakWord(wordModal.word, "en-GB");
+                          }}
                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600"
                         >
                           UK 🔊
                         </button>
                         <button
-                          onClick={() => speakWord(wordModal.word, "en-US")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            speakWord(wordModal.word, "en-US");
+                          }}
                           className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600"
                         >
                           US 🔊
@@ -662,7 +720,10 @@ export default function VideoExercise({
                       </>
                     ) : (
                       <button
-                        onClick={() => speakWord(wordModal.word, "de-DE")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speakWord(wordModal.word, "de-DE");
+                        }}
                         className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600"
                       >
                         DE 🔊
@@ -680,7 +741,10 @@ export default function VideoExercise({
                   </div>
                   <button
                     className="absolute top-1 right-2 text-gray-400 hover:text-white"
-                    onClick={() => setWordModal(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setWordModal(null);
+                    }}
                   >
                     ×
                   </button>
