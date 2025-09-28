@@ -8,12 +8,10 @@ import { use, useState, useEffect } from "react";
 import {
   getLessons,
   getSubtitlesForVideo,
-  saveSubtitles,
-  clearSubtitlesForVideo,
-  clearAllSubtitles,
   getDetailedSubtitlesForLesson,
 } from "@/utils/lessonStorage";
 import { Subtitle as VideoSubtitle } from "@/types/video";
+import { DetailedSubtitle } from "@/types/lesson";
 
 export default function VideoExercisePage({
   params,
@@ -42,91 +40,36 @@ export default function VideoExercisePage({
   }
 
   const [subtitles, setSubtitles] = useState<VideoSubtitle[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [subtitleSource, setSubtitleSource] = useState<"cache" | "api" | null>(
-    null
-  );
 
   // Kiểm tra phụ đề trong localStorage khi component mount
   useEffect(() => {
-    if (exercise?.videoId) {
-      const cachedSubtitles = getSubtitlesForVideo(exercise.videoId);
-      console.log("cachedSubtitles", cachedSubtitles);
-      if (cachedSubtitles) {
-        setSubtitles(cachedSubtitles);
-        setSubtitleSource("cache");
+    if (exercise?.id) {
+      // Ưu tiên tìm trong detailedSubtitles của lesson trước
+      const detailedSubtitles = getDetailedSubtitlesForLesson(exercise.id);
+      if (detailedSubtitles) {
+        // Convert DetailedSubtitle[] to VideoSubtitle[]
+        const videoSubtitles: VideoSubtitle[] = detailedSubtitles.map(sub => ({
+          text: sub.text,
+          startTime: sub.startTime,
+          endTime: sub.endTime,
+        }));
+        setSubtitles(videoSubtitles);
+        return;
+      }
+
+      // Nếu không có, thử tìm trong cache phụ đề cũ
+      if (exercise?.videoId) {
+        const cachedSubtitles = getSubtitlesForVideo(exercise.videoId);
+        if (cachedSubtitles) {
+          setSubtitles(cachedSubtitles);
+        }
       }
     }
-  }, [exercise?.videoId]);
+  }, [exercise?.id, exercise?.videoId]);
 
   if (!exercise) {
     notFound();
   }
-
-  const handleStart = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Kiểm tra xem đã có phụ đề trong localStorage chưa
-      const cachedSubtitles = getDetailedSubtitlesForLesson(exercise?.id);
-      console.log("cachedSubtitles", cachedSubtitles);
-      if (cachedSubtitles) {
-        // Nếu có phụ đề trong cache, sử dụng luôn
-        setSubtitles(cachedSubtitles);
-        setSubtitleSource("cache");
-        setLoading(false);
-        return;
-      }
-
-      // Nếu chưa có, gọi API để lấy phụ đề
-      const res = await fetch(
-        `/api/youtube-captions?videoId=${exercise.videoId}&lang=${
-          exercise.language || "en"
-        }`
-      );
-
-      if (!res.ok) throw new Error("Không thể tải phụ đề từ YouTube");
-
-      const rawData = await res.json();
-      console.log("rawData Youtube", rawData);
-
-      // Chuyển đổi dữ liệu để phù hợp với phát âm thanh
-      const formattedData = rawData.map((item) => ({
-        ...item,
-        startTime: parseFloat(item.start),
-        endTime: parseFloat(item.end),
-        text: item.text,
-      }));
-      console.log("formattedData", formattedData);
-
-      // Lưu phụ đề đã được chuyển đổi vào localStorage để sử dụng lần sau
-      saveSubtitles(exercise.videoId, formattedData);
-
-      // Đặt phụ đề đã được chuyển đổi cho component sử dụng
-      setSubtitles(formattedData);
-      setSubtitleSource("api");
-    } catch (e: any) {
-      setError(e.message || "Lỗi không xác định");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleClearCache = () => {
-    clearSubtitlesForVideo(exercise.videoId);
-    setSubtitles(null);
-    setSubtitleSource(null);
-  };
-
-  const handleClearAllCache = () => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa tất cả cache phụ đề?")) {
-      clearAllSubtitles();
-      setSubtitles(null);
-      setSubtitleSource(null);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-100 py-8">
@@ -139,30 +82,18 @@ export default function VideoExercisePage({
             ← Quay lại danh sách bài tập
           </Link>
         </div>
-        {!subtitles && (
-          <div className="flex flex-col items-center">
-            <button
-              onClick={handleStart}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-lg font-semibold"
-              disabled={loading}
-            >
-              {loading ? "Đang tải phụ đề..." : "Bắt đầu làm bài"}
-            </button>
-            {error && <p className="mt-4 text-red-600">{error}</p>}
-          </div>
-        )}
-        {subtitles && (
-          <div>
-            <VideoExercise
-              title={exercise.title}
-              level={exercise.level}
-              videoId={exercise.videoId}
-              startTime={exercise.startTime}
-              endTime={exercise.endTime}
-              subtitles={subtitles}
-            />
-          </div>
-        )}
+
+        {/* Hiển thị VideoExercise component với tất cả logic */}
+        <VideoExercise
+          title={exercise.title}
+          level={exercise.level}
+          videoId={exercise.videoId}
+          startTime={exercise.startTime}
+          endTime={exercise.endTime}
+          subtitles={subtitles || []}
+          lessonId={exercise.id}
+          language={exercise.language}
+        />
       </div>
     </div>
   );

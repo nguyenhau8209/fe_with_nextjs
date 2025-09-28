@@ -12,6 +12,9 @@ export interface VideoExerciseProps {
   startTime?: number;
   endTime?: number;
   subtitles: Subtitle[];
+  autoStart?: boolean;
+  lessonId?: string;
+  language?: string;
 }
 
 export interface Settings {

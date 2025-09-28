@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import YouTube, { YouTubeProps } from "react-youtube";
 import Settings from "./Settings";
-import { VideoExerciseProps, Settings as SettingsType } from "../types/video";
+import { VideoExerciseProps, Settings as SettingsType, Subtitle } from "../types/video";
 import { SETTINGS_KEY, YOUTUBE_PLAYER_STATES } from "../constants/video";
 import {
   checkAnswer,
@@ -14,6 +14,8 @@ import {
   addPunctuationToInput,
 } from "../utils/video";
 import { useRouter } from "next/navigation";
+import { getDetailedSubtitlesForLesson, saveSubtitles } from "../utils/lessonStorage";
+import { DetailedSubtitle } from "../types/lesson";
 
 declare global {
   namespace YT {
@@ -41,7 +43,9 @@ export default function VideoExercise({
   endTime,
   subtitles,
   language = "de",
-}: VideoExerciseProps & { language?: string }) {
+  autoStart = false,
+  lessonId,
+}: VideoExerciseProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userInput, setUserInput] = useState("");
   const [showTranslation, setShowTranslation] = useState(false);
@@ -51,8 +55,22 @@ export default function VideoExercise({
   const [settings, setSettings] = useState<SettingsType | null>(null);
   const [videoSize, setVideoSize] = useState<"normal" | "large">("normal");
   const [showVideo, setShowVideo] = useState(false);
+  const [exerciseStarted, setExerciseStarted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [currentSubtitles, setCurrentSubtitles] = useState<Subtitle[]>(subtitles);
+  const [error, setError] = useState<string | null>(null);
+
+  // Kiểm tra xem đã có phụ đề sẵn từ props chưa
+  const hasSubtitlesFromProps = subtitles.length > 0;
+
+  // Đồng bộ currentSubtitles với subtitles props
+  useEffect(() => {
+    if (subtitles.length > 0) {
+      setCurrentSubtitles(subtitles);
+    }
+  }, [subtitles]);
   const playerRef = useRef<YT.Player | null>(null);
-  const currentSubtitle = subtitles[currentIndex];
+  const currentSubtitle = currentSubtitles[currentIndex];
   const [hint, setHint] = useState<string>("");
   const [isCorrect, setIsCorrect] = useState(false);
   const [note, setNote] = useState<string>("");
@@ -193,7 +211,12 @@ export default function VideoExercise({
 
   const playCurrentSubtitle = () => {
     if (!playerRef.current || !currentSubtitle) {
-      console.log("Cannot play: no player or subtitle");
+      console.log("Cannot play: no player or subtitle", {
+        player: !!playerRef.current,
+        subtitle: !!currentSubtitle,
+        currentIndex,
+        subtitlesLength: currentSubtitles.length
+      });
       return;
     }
 
@@ -203,23 +226,27 @@ export default function VideoExercise({
       }s`
     );
 
-    // Seek đến thời điểm bắt đầu của subtitle
-    playerRef.current.seekTo(currentSubtitle.startTime);
+    try {
+      // Seek đến thời điểm bắt đầu của subtitle
+      playerRef.current.seekTo(currentSubtitle.startTime);
 
-    // Đợi một chút để seek hoàn thành rồi mới play
-    setTimeout(() => {
-      if (playerRef.current) {
-        playerRef.current.playVideo();
-        setIsPlaying(true);
-      }
-    }, 100);
+      // Đợi một chút để seek hoàn thành rồi mới play
+      setTimeout(() => {
+        if (playerRef.current) {
+          playerRef.current.playVideo();
+          setIsPlaying(true);
+        }
+      }, 200); // Tăng delay để đảm bảo seek hoàn thành
+    } catch (error) {
+      console.error("Error playing subtitle:", error);
+    }
   };
 
   const handlePrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
       setUserInput("");
-      const prevSentence = getPreviousSubtitle(currentIndex, subtitles);
+      const prevSentence = getPreviousSubtitle(currentIndex, currentSubtitles);
       if (prevSentence && playerRef.current) {
         console.log(
           `Moving to previous subtitle: ${prevSentence.startTime}s - ${prevSentence.endTime}s`
@@ -236,10 +263,10 @@ export default function VideoExercise({
   };
 
   const handleNext = () => {
-    if (currentIndex < subtitles.length - 1) {
+    if (currentIndex < currentSubtitles.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setUserInput("");
-      const nextSentence = getNextSubtitle(currentIndex, subtitles);
+      const nextSentence = getNextSubtitle(currentIndex, currentSubtitles);
       if (nextSentence && playerRef.current) {
         console.log(
           `Moving to next subtitle: ${nextSentence.startTime}s - ${nextSentence.endTime}s`
@@ -260,7 +287,7 @@ export default function VideoExercise({
   // Sửa handleSubmit để xử lý xác nhận Enter lần 2 ở câu cuối
   const handleSubmit = () => {
     // Nếu đang ở câu cuối cùng và đã đúng
-    if (currentIndex === subtitles.length - 1 && isCorrect) {
+    if (currentIndex === currentSubtitles.length - 1 && isCorrect) {
       setFinalConfirmCount((c) => c + 1);
       return;
     }
@@ -360,6 +387,94 @@ export default function VideoExercise({
     setShowNoteInput(false);
     setTranslation("");
   }, [currentIndex]);
+
+  // Auto start câu đầu tiên khi component mount và autoStart = true
+  useEffect(() => {
+    if (autoStart && currentSubtitles.length > 0 && playerRef.current) {
+      // Đợi một chút để player sẵn sàng
+      setTimeout(() => {
+        playCurrentSubtitle();
+      }, 1000);
+    }
+  }, [autoStart, currentSubtitles]);
+
+
+  // Reset về câu đầu tiên khi exercise bắt đầu
+  useEffect(() => {
+    if (exerciseStarted && currentSubtitles.length > 0) {
+      setCurrentIndex(0);
+      setUserInput("");
+      setShowAnswer(false);
+      setShowTranslation(false);
+      setIsCorrect(false);
+    }
+  }, [exerciseStarted, currentSubtitles.length]);
+
+  // Logic để bắt đầu exercise
+  const handleStartExercise = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let newSubtitles: Subtitle[] = [];
+
+      // Nếu đã có phụ đề từ props, sử dụng luôn
+      if (currentSubtitles.length > 0) {
+        newSubtitles = currentSubtitles;
+      } else {
+        // Kiểm tra xem đã có phụ đề trong localStorage chưa
+        if (lessonId) {
+          const cachedSubtitles = getDetailedSubtitlesForLesson(lessonId);
+          if (cachedSubtitles && cachedSubtitles.length > 0) {
+            // Convert DetailedSubtitle[] to Subtitle[]
+            newSubtitles = cachedSubtitles.map(sub => ({
+              text: sub.text,
+              startTime: sub.startTime,
+              endTime: sub.endTime,
+            }));
+          }
+        }
+
+        // Nếu vẫn không có phụ đề, gọi API để lấy
+        if (newSubtitles.length === 0) {
+          const res = await fetch(
+            `/api/youtube-captions?videoId=${videoId}&lang=${language || "en"}`
+          );
+
+          if (!res.ok) throw new Error("Không thể tải phụ đề từ YouTube");
+
+          const rawData = await res.json();
+          newSubtitles = rawData.map((item: any) => ({
+            ...item,
+            startTime: parseFloat(item.start),
+            endTime: parseFloat(item.end),
+            text: item.text,
+          }));
+
+          // Lưu phụ đề đã được chuyển đổi vào localStorage
+          saveSubtitles(videoId, newSubtitles);
+        }
+      }
+
+      // Cập nhật state và bắt đầu exercise
+      setCurrentSubtitles(newSubtitles);
+      setExerciseStarted(true);
+      setLoading(false);
+
+      // Tự động phát câu đầu tiên với delay để đảm bảo state đã cập nhật
+      setTimeout(() => {
+        console.log("Auto-playing first subtitle after manual exercise start");
+        if (newSubtitles.length > 0 && playerRef.current && currentIndex === 0) {
+          playCurrentSubtitle();
+        }
+      }, 1000);
+      
+    } catch (e: any) {
+      setError(e.message || "Lỗi không xác định");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isCorrect) {
@@ -464,13 +579,13 @@ export default function VideoExercise({
   // Cập nhật lại useEffect kiểm tra hoàn thành bài tập
   useEffect(() => {
     if (
-      currentIndex === subtitles.length - 1 &&
+      currentIndex === currentSubtitles.length - 1 &&
       isCorrect &&
       finalConfirmCount >= 2
     ) {
       setTimeout(() => setShowCompletionModal(true), 300);
     }
-  }, [currentIndex, isCorrect, finalConfirmCount, subtitles.length]);
+  }, [currentIndex, isCorrect, finalConfirmCount, currentSubtitles.length]);
 
   // Reset lại finalConfirmCount khi chuyển sang câu khác hoặc làm lại
   useEffect(() => {
@@ -496,8 +611,8 @@ export default function VideoExercise({
     setWordInfo({});
     setShowCompletionModal(false);
     setFinalConfirmCount(0);
-    if (playerRef.current) {
-      playerRef.current.seekTo(subtitles[0].startTime);
+    if (playerRef.current && currentSubtitles.length > 0) {
+      playerRef.current.seekTo(currentSubtitles[0].startTime);
       playerRef.current.pauseVideo();
     }
   };
@@ -572,73 +687,84 @@ export default function VideoExercise({
           </div>
         </div>
         <div className="flex-1 flex flex-col">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handlePrevious}
-                disabled={currentIndex === 0}
-                className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-white rounded-xl hover:bg-gray-600 disabled:opacity-50 text-sm sm:text-base transition-colors duration-200"
-              >
-                ←
-              </button>
-              <span className="text-white text-sm sm:text-lg font-semibold">
-                {currentIndex + 1} / {subtitles.length}
-              </span>
-              <button
-                onClick={handleNext}
-                disabled={currentIndex === subtitles.length - 1}
-                className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-white rounded-xl hover:bg-gray-600 disabled:opacity-50 text-sm sm:text-base transition-colors duration-200"
-              >
-                →
-              </button>
-              <button
-                onClick={playCurrentSubtitle}
-                disabled={isPlaying}
-                className="border border-white rounded-full p-1 bg-amber-50 w-8 h-8 flex items-center justify-center"
-                title="Phát lại câu hiện tại"
-              >
-                {isPlaying ? "⏸" : "▶"}
-              </button>
-              <button
-                onClick={() => {
-                  console.log("Test button clicked");
-                  console.log("Current subtitle:", currentSubtitle);
-                  console.log("Player ref:", playerRef.current);
-                  console.log("Is playing:", isPlaying);
-                }}
-                className="border border-white rounded-full p-1 bg-blue-50 w-8 h-8 flex items-center justify-center text-xs"
-                title="Test debug"
-              >
-                🐛
-              </button>
+          {!exerciseStarted ? (
+            // Giao diện pre-start - chỉ hiển thị khi không có phụ đề
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <button
+                  onClick={handleStartExercise}
+                  disabled={loading}
+                  className="px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xl font-semibold transition-colors duration-200 shadow-lg disabled:opacity-50"
+                >
+                  {loading ? "Đang tải..." : "Bắt đầu làm bài"}
+                </button>
+                {error && (
+                  <div className="mt-4 p-3 bg-red-100 border border-red-300 rounded-lg">
+                    <p className="text-red-600 text-sm">{error}</p>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowVideo(!showVideo)}
-                className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm sm:text-base transition-colors duration-200"
-              >
-                {showVideo ? "Ẩn video" : "Hiện video"}
-              </button>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 text-sm"
-                title="Cài đặt"
-              >
-                ⚙
-              </button>
-            </div>
-          </div>
-          {showSettings && <Settings onClose={() => setShowSettings(false)} />}
-          <div className="mb-3 sm:mb-4">
-            <textarea
-              value={userInput}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Nhập câu bạn nghe được..."
-              className="w-full h-24 sm:h-32 p-3 sm:p-4 bg-gray-800 text-white rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm sm:text-base"
-            />
-          </div>
-          {isCorrect && (
+          ) : (
+            // Giao diện exercise đã bắt đầu
+            <>
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePrevious}
+                    disabled={currentIndex === 0}
+                    className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-white rounded-xl hover:bg-gray-600 disabled:opacity-50 text-sm sm:text-base transition-colors duration-200"
+                  >
+                    ←
+                  </button>
+                  <span className="text-white text-sm sm:text-lg font-semibold">
+                    {currentIndex + 1} / {currentSubtitles.length}
+                  </span>
+                  <button
+                    onClick={handleNext}
+                    disabled={currentIndex === currentSubtitles.length - 1}
+                    className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-white rounded-xl hover:bg-gray-600 disabled:opacity-50 text-sm sm:text-base transition-colors duration-200"
+                  >
+                    →
+                  </button>
+                  <button
+                    onClick={playCurrentSubtitle}
+                    disabled={isPlaying}
+                    className="border border-white rounded-full p-1 bg-amber-50 w-8 h-8 flex items-center justify-center"
+                    title="Phát lại câu hiện tại"
+                  >
+                    {isPlaying ? "⏸" : "▶"}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowVideo(!showVideo)}
+                    className="px-3 sm:px-4 py-1 sm:py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm sm:text-base transition-colors duration-200"
+                  >
+                    {showVideo ? "Ẩn video" : "Hiện video"}
+                  </button>
+                  <button
+                    onClick={() => setShowSettings(true)}
+                    className="px-3 py-1 bg-gray-700 text-white rounded hover:bg-gray-600 text-sm"
+                    title="Cài đặt"
+                  >
+                    ⚙
+                  </button>
+                </div>
+              </div>
+              {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+              <div className="mb-3 sm:mb-4">
+                <textarea
+                  value={userInput}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Nhập câu bạn nghe được..."
+                  className="w-full h-24 sm:h-32 p-3 sm:p-4 bg-gray-800 text-white rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm sm:text-base"
+                />
+              </div>
+            </>
+          )}
+          {exerciseStarted && isCorrect && (
             <div className="flex items-center gap-2 mb-2">
               <span className="text-green-500 text-2xl">✔</span>
               <span className="text-green-500 font-bold text-lg">
@@ -646,12 +772,12 @@ export default function VideoExercise({
               </span>
             </div>
           )}
-          {isCorrect && translation && (
+          {exerciseStarted && isCorrect && translation && (
             <div className=" mb-3 mt-2 p-3 sm:p-4 bg-gray-800 rounded-lg text-sm sm:text-base text-white">
               {translation}
             </div>
           )}
-          {isCorrect && (
+          {exerciseStarted && isCorrect && (
             <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-yellow-900/50 rounded-lg">
               <p className="text-sm sm:text-base font-medium mb-1 text-white">
                 Phát âm:
@@ -753,7 +879,7 @@ export default function VideoExercise({
             </div>
           )}
 
-          {!isCorrect && showAnswer && currentSubtitle && (
+          {exerciseStarted && !isCorrect && showAnswer && currentSubtitle && (
             <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-yellow-900/50 rounded-lg">
               <p className="text-sm sm:text-base font-medium mb-1 text-white">
                 Đáp án:
@@ -766,8 +892,9 @@ export default function VideoExercise({
               />
             </div>
           )}
-          <div className="mb-3 sm:mb-4 flex gap-2">
-            {!isCorrect ? (
+          {exerciseStarted && (
+            <div className="mb-3 sm:mb-4 flex gap-2">
+              {!isCorrect ? (
               <>
                 <button
                   onClick={handleSubmit}
@@ -798,8 +925,9 @@ export default function VideoExercise({
                 </button>
               </>
             )}
-          </div>
-          {showNoteInput && (
+            </div>
+          )}
+          {exerciseStarted && showNoteInput && (
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
