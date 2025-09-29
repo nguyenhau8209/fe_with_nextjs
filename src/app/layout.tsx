@@ -3,9 +3,9 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import type { Viewport } from "next";
 const inter = Inter({ subsets: ["latin"] });
-
+import { SpeedInsights } from '@vercel/speed-insights/next';
 export const metadata: Metadata = {
-  title: "Daily Dictation Deutsch",
+  title: "Daily Deutsch Dictation",
   description: "Luyện nghe chép tiếng Đức mỗi ngày",
 };
 
@@ -28,6 +28,7 @@ export default function RootLayout({
         <main className="min-h-screen bg-gray-50">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             {children}
+            <SpeedInsights />
           </div>
         </main>
       </body>
