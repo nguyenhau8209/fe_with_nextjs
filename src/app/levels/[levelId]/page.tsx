@@ -1,11 +1,10 @@
 "use client";
 
-import { exercises, videoExercises } from "@/data/exercises";
+import { videoExercises } from "@/data/exercises";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { CreateLessonForm } from "@/components/CreateLessonForm";
-import { getLessons, deleteLesson } from "@/utils/lessonStorage";
 
 const levelNames: { [key: string]: string } = {
   a1: "A1 - Cơ bản",
@@ -23,13 +22,9 @@ export default function LevelPage({
 }) {
   const { levelId } = use(params);
   const levelIdLower = levelId.toLowerCase();
-  const [showType, setShowType] = useState<"audio" | "video" | null>(null);
-  const [customLessons, setCustomLessons] = useState(() =>
-    getLessons().filter(
-      (lesson) =>
-        lesson.level?.toLowerCase() === levelIdLower && !lesson.isSystemLesson
-    )
-  );
+  const [showType, setShowType] = useState<"video" | null>(null);
+  const [customLessons, setCustomLessons] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showDevModal, setShowDevModal] = useState(false);
 
@@ -37,30 +32,54 @@ export default function LevelPage({
     notFound();
   }
 
-  const levelExercises = exercises.filter(
-    (ex) => ex.level.toLowerCase() === levelIdLower
-  );
   const levelVideoExercises = videoExercises.filter(
     (ex) => ex.level.toLowerCase() === levelIdLower
   );
 
-  const refreshCustomLessons = () => {
-    setCustomLessons(
-      getLessons().filter(
-        (lesson) =>
-          lesson.level?.toLowerCase() === levelIdLower && !lesson.isSystemLesson
-      )
-    );
-  };
-
-  const handleDeleteLesson = (lessonId: string, event: React.MouseEvent) => {
-    event.preventDefault(); // Ngăn chặn navigation
-    if (window.confirm("Bạn có chắc chắn muốn xóa bài học này?")) {
-      deleteLesson(lessonId);
-      refreshCustomLessons();
+  const fetchCustomLessons = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/lessons?level=${levelIdLower}`);
+      if (!res.ok) {
+        throw new Error("Failed to fetch lessons");
+      }
+      const result = await res.json();
+      // **Điểm sửa lỗi:** Kiểm tra xem `result.data` có phải là mảng không.
+      // Nếu không, hoặc nếu API trả về lỗi, chúng ta sẽ đặt nó thành một mảng rỗng.
+      setCustomLessons(Array.isArray(result.data) ? result.data : []);
+    } catch (error) {
+      console.error("Failed to fetch lessons:", error);
+      setCustomLessons([]); // Đảm bảo customLessons luôn là một mảng khi có lỗi
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchCustomLessons();
+  }, [levelIdLower]);
+
+  const handleDeleteLesson = async (lessonId: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    if (window.confirm("Bạn có chắc chắn muốn xóa bài học này?")) {
+      try {
+        const res = await fetch(`/api/lessons/${lessonId}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          fetchCustomLessons(); // Tải lại danh sách sau khi xóa thành công
+        } else {
+          const errorData = await res.json();
+          alert(`Xóa bài học thất bại: ${errorData.error}`);
+        }
+      } catch (error) {
+        console.error("Failed to delete lesson:", error);
+        alert('Đã xảy ra lỗi khi kết nối đến server.');
+      }
+    }
+  };
+  
+  // **Điểm sửa lỗi:** Dòng này giờ sẽ luôn an toàn
   const allVideoLessons = [...levelVideoExercises, ...customLessons];
 
   return (
@@ -134,7 +153,7 @@ export default function LevelPage({
                 Danh sách bài tập video YouTube
               </h2>
               <button
-                onClick={refreshCustomLessons}
+                onClick={fetchCustomLessons}
                 className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 text-sm transition-colors duration-200"
               >
                 Làm mới danh sách
@@ -160,7 +179,7 @@ export default function LevelPage({
                       level={levelIdLower}
                       onSuccess={() => {
                         setShowModal(false);
-                        refreshCustomLessons();
+                        fetchCustomLessons();
                       }}
                     />
                   </div>
@@ -168,35 +187,37 @@ export default function LevelPage({
               )}
             </div>
             <div className="grid gap-3 sm:gap-4">
-              {allVideoLessons.length === 0 && (
+              {isLoading ? (
+                <p>Đang tải bài học của bạn...</p>
+              ) : allVideoLessons.length === 0 ? (
                 <p className="text-gray-600">
                   Chưa có bài tập video cho trình độ này.
                 </p>
-              )}
-              {allVideoLessons.map((exercise) => (
-                <div
-                  key={exercise.id}
-                  className="bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <Link href={`/videos/${exercise.id}`} className="flex-1">
-                      <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
-                        {exercise.title}
-                      </h3>
-                    </Link>
-                    {"isSystemLesson" in exercise &&
-                      !exercise.isSystemLesson && (
+              ) : (
+                allVideoLessons.map((exercise) => (
+                  <div
+                    key={exercise.id || exercise._id} // MongoDB dùng _id
+                    className="bg-white rounded-lg shadow-md p-4 sm:p-6 hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <Link href={`/videos/${exercise.id || exercise._id}`} className="flex-1">
+                        <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
+                          {exercise.title}
+                        </h3>
+                      </Link>
+                      {("isSystemLesson" in exercise && !exercise.isSystemLesson) || customLessons.some(l => l._id === exercise._id) && (
                         <button
-                          onClick={(e) => handleDeleteLesson(exercise.id, e)}
+                          onClick={(e) => handleDeleteLesson(exercise._id, e)}
                           className="ml-4 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors duration-200"
                           title="Xóa bài học"
                         >
                           Xóa
                         </button>
                       )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}

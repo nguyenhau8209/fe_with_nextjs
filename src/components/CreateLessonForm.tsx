@@ -146,16 +146,30 @@ export const CreateLessonForm = ({
     setLoading(true);
     setError("");
     try {
-      const finalLessonInput = { ...pendingLesson.lessonInput };
-      saveLesson(finalLessonInput, [], finalSubtitles);
-
-      setSuccess("Lesson created successfully!");
+      const lessonData = {
+        ...pendingLesson.lessonInput,
+        detailedSubtitles: finalSubtitles,
+        isSystemLesson: false,
+      };
+      console.log("lessonData:", lessonData );
+      const res = await fetch('/api/lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(lessonData),
+      });
+      console.log("res:", res);
+      if (!res.ok) {
+        throw new Error('Không thể tạo bài học. Vui lòng thử lại.');
+      }
+  
+      setSuccess("Bài học đã được tạo thành công!");
       setSubtitlesForTiming(null);
       setUrl("");
       setPendingLesson(null);
       if (onSuccess) onSuccess();
+  
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra");
     } finally {
       setLoading(false);
     }
